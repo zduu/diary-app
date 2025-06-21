@@ -1,4 +1,4 @@
-import { format, formatDistanceToNow, isToday, isYesterday, isThisWeek, isThisMonth, isThisYear } from 'date-fns';
+import { format, isToday, isYesterday, isThisWeek, isThisMonth, isThisYear } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 
 export interface TimeDisplay {

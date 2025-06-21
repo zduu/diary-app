@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { Clock } from 'lucide-react';
 import { DiaryEntry } from '../types';
 import { DiaryCard } from './DiaryCard';
@@ -30,7 +30,7 @@ export function Timeline({ entries, onEdit, onDelete }: TimelineProps) {
         }}
       ></div>
 
-      {Object.entries(groupedEntries).map(([dateGroup, groupEntries], groupIndex) => (
+      {Object.entries(groupedEntries).map(([dateGroup, groupEntries]) => (
         <div key={dateGroup} className="relative mb-12">
           {/* 日期节点 */}
           <div className="flex items-center mb-8">
@@ -65,7 +65,7 @@ export function Timeline({ entries, onEdit, onDelete }: TimelineProps) {
 
           {/* 日记条目 */}
           <div className="ml-20 space-y-8">
-            {groupEntries.map((entry, entryIndex) => {
+            {groupEntries.map((entry) => {
               const timeDisplay = getSmartTimeDisplay(entry.created_at!);
 
               return (

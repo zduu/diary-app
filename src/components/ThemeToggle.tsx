@@ -1,7 +1,5 @@
-import React from 'react';
 import { Sun, Moon, Sparkles } from 'lucide-react';
 import { useThemeContext } from './ThemeProvider';
-import { ThemeMode } from '../hooks/useTheme';
 
 const themeIcons = {
   light: Sun,
