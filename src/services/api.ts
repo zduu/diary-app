@@ -1,4 +1,5 @@
 import { DiaryEntry, ApiResponse } from '../types';
+import { withRetry, verifyDeletion, getConsistencyErrorMessage } from '../utils/d1Utils';
 
 const API_BASE_URL = '/api';
 
@@ -367,15 +368,44 @@ class ApiService {
     }
 
     try {
-      const response = await this.request(`/entries/${id}`, {
-        method: 'DELETE',
-      });
+      // 使用重试机制执行删除操作
+      await withRetry(async () => {
+        const response = await this.request(`/entries/${id}`, {
+          method: 'DELETE',
+        });
 
-      if (!response.success) {
-        throw new Error(response.error || '删除失败');
+        if (!response.success) {
+          throw new Error(response.error || '删除失败');
+        }
+      }, { maxRetries: 2, baseDelay: 100 });
+
+      // 验证删除是否成功
+      const isDeleted = await verifyDeletion(async () => {
+        try {
+          await this.request(`/entries/${id}`);
+          // 如果能获取到数据，说明还没删除
+          return false;
+        } catch (error) {
+          // 如果获取失败（404），说明删除成功
+          return error instanceof Error && error.message.includes('不存在');
+        }
+      }, { maxRetries: 5, baseDelay: 200 });
+
+      if (!isDeleted) {
+        console.warn(`删除操作可能需要更多时间同步，ID: ${id}`);
+        // 不抛出错误，让用户知道操作正在进行中
       }
+
     } catch (error) {
-      console.warn('远程API调用失败，切换到本地Mock服务:', error);
+      const errorMessage = getConsistencyErrorMessage(error instanceof Error ? error : new Error(String(error)));
+      console.warn('远程API调用失败:', errorMessage);
+
+      // 如果是一致性问题，不切换到Mock服务
+      if (errorMessage.includes('同步')) {
+        throw new Error(errorMessage);
+      }
+
+      // 其他错误切换到Mock服务
       this.useMockService = true;
       return this.mockService.deleteEntry(id);
     }

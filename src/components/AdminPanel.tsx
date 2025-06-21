@@ -234,11 +234,40 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
     if (!confirm(confirmMessage)) return;
 
     try {
+      // 显示删除中状态
+      const deleteButton = document.querySelector(`[data-entry-id="${entryId}"]`) as HTMLButtonElement;
+      if (deleteButton) {
+        deleteButton.textContent = '删除中...';
+        deleteButton.disabled = true;
+      }
+
       await apiService.deleteEntry(entryId);
-      onEntriesUpdate(); // 刷新数据
-      alert('删除成功！');
+
+      // 等待一段时间确保数据同步
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // 刷新数据
+      onEntriesUpdate();
+
+      // 验证删除是否成功
+      setTimeout(() => {
+        const stillExists = entries.find(e => e.id === entryId);
+        if (stillExists) {
+          alert('删除操作正在同步中，请稍后刷新页面查看结果');
+        } else {
+          alert('删除成功！');
+        }
+      }, 1000);
+
     } catch (error) {
       alert('删除失败：' + (error instanceof Error ? error.message : '未知错误'));
+
+      // 恢复按钮状态
+      const deleteButton = document.querySelector(`[data-entry-id="${entryId}"]`) as HTMLButtonElement;
+      if (deleteButton) {
+        deleteButton.textContent = '删除';
+        deleteButton.disabled = false;
+      }
     }
   };
 
@@ -719,6 +748,7 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
                         {/* 删除按钮 */}
                         <button
                           onClick={() => handleDeleteEntry(entry.id!)}
+                          data-entry-id={entry.id}
                           className="p-2 rounded hover:bg-opacity-80 transition-colors"
                           style={{
                             backgroundColor: 'rgba(239, 68, 68, 0.1)',

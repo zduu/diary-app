@@ -42,9 +42,24 @@ export function useDiary() {
 
   const deleteEntry = async (id: number) => {
     try {
-      await apiService.deleteEntry(id);
+      // 先乐观更新UI
       setEntries(prev => prev.filter(e => e.id !== id));
+
+      await apiService.deleteEntry(id);
+
+      // 等待一段时间确保数据同步
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // 重新加载数据以确保一致性
+      try {
+        await loadEntries();
+      } catch (reloadError) {
+        console.warn('重新加载数据失败，但删除操作可能已成功:', reloadError);
+      }
+
     } catch (err) {
+      // 如果删除失败，重新加载数据以恢复正确状态
+      await loadEntries();
       throw new Error(err instanceof Error ? err.message : '删除失败');
     }
   };

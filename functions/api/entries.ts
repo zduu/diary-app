@@ -58,6 +58,59 @@ class DiaryDatabase {
     return this.formatEntry(result);
   }
 
+  async updateEntry(id: number, updates: Partial<DiaryEntry>): Promise<DiaryEntry> {
+    // 首先检查条目是否存在
+    const existing = await this.db.prepare('SELECT * FROM diary_entries WHERE id = ?').bind(id).first();
+    if (!existing) {
+      throw new Error('日记不存在');
+    }
+
+    const tagsJson = updates.tags ? JSON.stringify(updates.tags) : undefined;
+    const imagesJson = updates.images ? JSON.stringify(updates.images) : undefined;
+
+    const result = await this.db.prepare(`
+      UPDATE diary_entries
+      SET title = COALESCE(?, title),
+          content = COALESCE(?, content),
+          content_type = COALESCE(?, content_type),
+          mood = COALESCE(?, mood),
+          weather = COALESCE(?, weather),
+          images = COALESCE(?, images),
+          tags = COALESCE(?, tags),
+          hidden = COALESCE(?, hidden),
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+      RETURNING *
+    `).bind(
+      updates.title,
+      updates.content,
+      updates.content_type,
+      updates.mood,
+      updates.weather,
+      imagesJson,
+      tagsJson,
+      updates.hidden !== undefined ? (updates.hidden ? 1 : 0) : undefined,
+      id
+    ).first();
+
+    return this.formatEntry(result);
+  }
+
+  async deleteEntry(id: number): Promise<void> {
+    // 首先检查条目是否存在
+    const existing = await this.db.prepare('SELECT id FROM diary_entries WHERE id = ?').bind(id).first();
+    if (!existing) {
+      throw new Error('日记不存在');
+    }
+
+    // 执行删除
+    const result = await this.db.prepare('DELETE FROM diary_entries WHERE id = ?').bind(id).run();
+
+    if (result.changes === 0) {
+      throw new Error('删除失败');
+    }
+  }
+
   private formatEntry(row: any): DiaryEntry {
     return {
       id: row.id,
