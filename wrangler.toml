@@ -1,15 +1,4 @@
-name = "diary-app"
-main = "worker/src/index.ts"
-compatibility_date = "2024-01-15"
-compatibility_flags = ["nodejs_compat"]
-
-[env.production]
-name = "diary-app"
-
-[env.preview]
-name = "diary-app-preview"
-
-# Pages configuration
+# Cloudflare Pages configuration
 pages_build_output_dir = "dist"
 
 [[d1_databases]]

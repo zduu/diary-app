@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Plus, BookOpen, RefreshCw, Settings } from 'lucide-react';
 import { Timeline } from './components/Timeline';
 import { DiaryForm } from './components/DiaryForm';
@@ -270,7 +270,7 @@ function AppContent() {
         isOpen={isAdminPanelOpen}
         onClose={() => setIsAdminPanelOpen(false)}
         entries={entries}
-        onEntriesUpdate={(newEntries) => {
+        onEntriesUpdate={() => {
           // 这里需要实现更新entries的逻辑
           // 暂时使用refreshEntries来重新加载
           refreshEntries();

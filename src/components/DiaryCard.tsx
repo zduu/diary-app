@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, Heart, Cloud, Sun, CloudRain, Snowflake, Edit, Trash2, Image as ImageIcon } from 'lucide-react';
+import { Calendar, Cloud, Sun, CloudRain, Snowflake, Edit, Trash2, Image as ImageIcon } from 'lucide-react';
 import { DiaryEntry, MoodType, WeatherType } from '../types';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { getSmartTimeDisplay } from '../utils/timeUtils';

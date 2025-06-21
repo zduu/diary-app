@@ -1,8 +1,5 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import {
-  Settings,
-  Lock,
-  Unlock,
   Download,
   Upload,
   Search,
@@ -10,8 +7,8 @@ import {
   EyeOff,
   Shield,
   Key,
-  Database,
-  FileText,
+  Lock,
+  Unlock,
   X
 } from 'lucide-react';
 import { useThemeContext } from './ThemeProvider';
@@ -388,7 +385,7 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate }: AdminP
                     backgroundColor: theme.colors.surface,
                     borderColor: theme.colors.border,
                     color: theme.colors.text,
-                    focusRingColor: theme.colors.primary,
+                    // focusRingColor: theme.colors.primary,
                   }}
                   required
                 />

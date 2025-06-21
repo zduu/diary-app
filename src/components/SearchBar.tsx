@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, X, Filter } from 'lucide-react';
 import { useThemeContext } from './ThemeProvider';
 import { useAdminAuth } from './AdminPanel';
@@ -126,7 +126,7 @@ export function SearchBar({ entries, onSearchResults, onClearSearch }: SearchBar
               ? 'rgba(255, 255, 255, 0.3)' 
               : theme.colors.border,
             color: theme.mode === 'glass' ? 'white' : theme.colors.text,
-            focusRingColor: theme.colors.primary,
+            // focusRingColor: theme.colors.primary,
           }}
         />
 
