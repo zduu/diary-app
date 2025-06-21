@@ -9,7 +9,9 @@ import {
   Key,
   Lock,
   Unlock,
-  X
+  X,
+  Trash2,
+  Edit
 } from 'lucide-react';
 import { useThemeContext } from './ThemeProvider';
 import { DiaryEntry } from '../types';
@@ -58,7 +60,8 @@ interface AdminPanelProps {
   isOpen: boolean;
   onClose: () => void;
   entries: DiaryEntry[];
-  onEntriesUpdate: (entries: DiaryEntry[]) => void;
+  onEntriesUpdate: () => void; // 改为刷新函数
+  onEdit?: (entry: DiaryEntry) => void; // 添加编辑功能
 }
 
 interface AdminSettings {
@@ -72,7 +75,7 @@ interface PasswordSettings {
   password: string;
 }
 
-export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate }: AdminPanelProps) {
+export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }: AdminPanelProps) {
   const { theme } = useThemeContext();
   const { isAdminAuthenticated, setIsAdminAuthenticated } = useAdminAuth();
   // 如果全局已认证，本地也设为已认证
@@ -216,16 +219,26 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate }: AdminP
       if (!entry) return;
 
       await apiService.updateEntry(entryId, { hidden: !entry.hidden });
-
-      const updatedEntries = entries.map(e => {
-        if (e.id === entryId) {
-          return { ...e, hidden: !e.hidden };
-        }
-        return e;
-      });
-      onEntriesUpdate(updatedEntries);
+      onEntriesUpdate(); // 刷新数据
     } catch (error) {
       alert('更新失败：' + (error instanceof Error ? error.message : '未知错误'));
+    }
+  };
+
+  // 删除日记
+  const handleDeleteEntry = async (entryId: number) => {
+    const entry = entries.find(e => e.id === entryId);
+    if (!entry) return;
+
+    const confirmMessage = `确定要删除日记"${entry.title || '无标题'}"吗？此操作不可恢复！`;
+    if (!confirm(confirmMessage)) return;
+
+    try {
+      await apiService.deleteEntry(entryId);
+      onEntriesUpdate(); // 刷新数据
+      alert('删除成功！');
+    } catch (error) {
+      alert('删除失败：' + (error instanceof Error ? error.message : '未知错误'));
     }
   };
 
@@ -652,7 +665,7 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate }: AdminP
                         borderColor: theme.colors.border,
                       }}
                     >
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <div className="font-medium" style={{ color: theme.colors.text }}>
                           {entry.title || '无标题'}
                           {entry.hidden && (
@@ -661,23 +674,69 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate }: AdminP
                             </span>
                           )}
                         </div>
-                        <div className="text-sm" style={{ color: theme.colors.textSecondary }}>
+                        <div className="text-sm truncate" style={{ color: theme.colors.textSecondary }}>
+                          {entry.content.substring(0, 50)}
+                          {entry.content.length > 50 && '...'}
+                        </div>
+                        <div className="text-xs mt-1" style={{ color: theme.colors.textSecondary }}>
                           {new Date(entry.created_at!).toLocaleString()}
                         </div>
                       </div>
-                      <button
-                        onClick={() => toggleEntryVisibility(entry.id!)}
-                        className="p-2 rounded hover:bg-opacity-80 transition-colors"
-                        style={{ backgroundColor: theme.colors.border }}
-                      >
-                        {entry.hidden ? (
-                          <Eye className="w-4 h-4" style={{ color: theme.colors.text }} />
-                        ) : (
-                          <EyeOff className="w-4 h-4" style={{ color: theme.colors.text }} />
+
+                      <div className="flex items-center gap-2 ml-3">
+                        {/* 编辑按钮 */}
+                        {onEdit && (
+                          <button
+                            onClick={() => {
+                              onEdit(entry);
+                              onClose(); // 关闭管理员面板
+                            }}
+                            className="p-2 rounded hover:bg-opacity-80 transition-colors"
+                            style={{
+                              backgroundColor: `${theme.colors.primary}20`,
+                              color: theme.colors.primary
+                            }}
+                            title="编辑"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
                         )}
-                      </button>
+
+                        {/* 隐藏/显示按钮 */}
+                        <button
+                          onClick={() => toggleEntryVisibility(entry.id!)}
+                          className="p-2 rounded hover:bg-opacity-80 transition-colors"
+                          style={{ backgroundColor: theme.colors.border }}
+                          title={entry.hidden ? "显示" : "隐藏"}
+                        >
+                          {entry.hidden ? (
+                            <Eye className="w-4 h-4" style={{ color: theme.colors.text }} />
+                          ) : (
+                            <EyeOff className="w-4 h-4" style={{ color: theme.colors.text }} />
+                          )}
+                        </button>
+
+                        {/* 删除按钮 */}
+                        <button
+                          onClick={() => handleDeleteEntry(entry.id!)}
+                          className="p-2 rounded hover:bg-opacity-80 transition-colors"
+                          style={{
+                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                            color: '#ef4444'
+                          }}
+                          title="删除"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   ))}
+
+                  {filteredEntries.length === 0 && (
+                    <div className="text-center py-8" style={{ color: theme.colors.textSecondary }}>
+                      {searchQuery ? '没有找到匹配的日记' : '暂无日记'}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

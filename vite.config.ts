@@ -9,6 +9,8 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     server: {
+      host: true, // 允许外部访问
+      port: 5173, // 指定端口
       proxy: shouldUseProxy ? {
         '/api': {
           target: process.env.VITE_API_BASE_URL || 'http://localhost:8788',

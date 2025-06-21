@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, BookOpen, RefreshCw, Settings } from 'lucide-react';
 import { Timeline } from './components/Timeline';
 import { DiaryForm } from './components/DiaryForm';
@@ -8,6 +8,7 @@ import { SearchBar } from './components/SearchBar';
 import { ThemeProvider, useThemeContext } from './components/ThemeProvider';
 import { ThemeToggle } from './components/ThemeToggle';
 import { DevTools } from './components/DevTools';
+import { ViewModeToggle, ViewMode } from './components/ViewModeToggle';
 import { useDiary } from './hooks/useDiary';
 import { DiaryEntry } from './types';
 
@@ -19,6 +20,21 @@ function AppContent() {
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [searchResults, setSearchResults] = useState<DiaryEntry[] | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('card');
+
+  // 从localStorage加载显示模式偏好
+  useEffect(() => {
+    const savedViewMode = localStorage.getItem('diary_view_mode') as ViewMode;
+    if (savedViewMode && (savedViewMode === 'card' || savedViewMode === 'timeline')) {
+      setViewMode(savedViewMode);
+    }
+  }, []);
+
+  // 保存显示模式偏好到localStorage
+  const handleViewModeChange = (mode: ViewMode) => {
+    setViewMode(mode);
+    localStorage.setItem('diary_view_mode', mode);
+  };
   const [isSearching, setIsSearching] = useState(false);
 
   const handleSave = async (entryData: Omit<DiaryEntry, 'id' | 'created_at' | 'updated_at'>) => {
@@ -93,11 +109,11 @@ function AppContent() {
           borderBottomColor: theme.mode === 'glass' ? undefined : theme.colors.border,
         }}
       >
-        <div className="max-w-6xl mx-auto px-4 py-6">
+        <div className="max-w-6xl mx-auto px-4 py-3 md:py-6">
           <div className="flex justify-between items-center">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 md:gap-4">
               <div
-                className="p-2 rounded-xl"
+                className="p-1.5 md:p-2 rounded-lg md:rounded-xl"
                 style={{
                   backgroundColor: theme.mode === 'glass'
                     ? 'rgba(255, 255, 255, 0.2)'
@@ -105,15 +121,15 @@ function AppContent() {
                 }}
               >
                 <BookOpen
-                  className="w-8 h-8"
+                  className="w-6 h-6 md:w-8 md:h-8"
                   style={{
                     color: theme.mode === 'glass' ? 'white' : theme.colors.primary
                   }}
                 />
               </div>
-              <div>
+              <div className="min-w-0">
                 <h1
-                  className={`text-3xl font-bold ${theme.mode === 'glass' ? 'text-white' : ''}`}
+                  className={`text-xl md:text-3xl font-bold ${theme.mode === 'glass' ? 'text-white' : ''}`}
                   style={{
                     color: theme.mode === 'glass' ? 'white' : theme.colors.text,
                     textShadow: theme.mode === 'glass' ? '0 4px 8px rgba(0, 0, 0, 0.3)' : 'none'
@@ -122,7 +138,7 @@ function AppContent() {
                   我的日记
                 </h1>
                 <p
-                  className={`text-sm ${theme.mode === 'glass' ? 'text-white' : ''}`}
+                  className={`text-xs md:text-sm ${theme.mode === 'glass' ? 'text-white' : ''} hidden sm:block`}
                   style={{
                     color: theme.mode === 'glass' ? 'rgba(255, 255, 255, 0.8)' : theme.colors.textSecondary,
                     textShadow: theme.mode === 'glass' ? '0 2px 4px rgba(0, 0, 0, 0.3)' : 'none'
@@ -133,12 +149,14 @@ function AppContent() {
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              <ThemeToggle />
+            <div className="flex items-center gap-1 md:gap-3">
+              <div className="hidden md:block">
+                <ThemeToggle />
+              </div>
 
               <button
                 onClick={() => setIsAdminPanelOpen(true)}
-                className="p-3 rounded-full transition-all duration-200 hover:scale-110"
+                className="p-2 md:p-3 rounded-full transition-all duration-200 hover:scale-110"
                 style={{
                   backgroundColor: theme.mode === 'glass' ? 'rgba(255, 255, 255, 0.2)' : theme.colors.surface,
                   color: theme.mode === 'glass' ? 'white' : theme.colors.textSecondary,
@@ -146,13 +164,13 @@ function AppContent() {
                 }}
                 title="管理员面板"
               >
-                <Settings className="w-5 h-5" />
+                <Settings className="w-4 h-4 md:w-5 md:h-5" />
               </button>
 
               <button
                 onClick={refreshEntries}
                 disabled={loading}
-                className="p-3 rounded-full transition-all duration-200 hover:scale-110 disabled:opacity-50"
+                className="p-2 md:p-3 rounded-full transition-all duration-200 hover:scale-110 disabled:opacity-50"
                 style={{
                   backgroundColor: theme.mode === 'glass' ? 'rgba(255, 255, 255, 0.2)' : theme.colors.surface,
                   color: theme.mode === 'glass' ? 'white' : theme.colors.textSecondary,
@@ -160,12 +178,12 @@ function AppContent() {
                 }}
                 title="刷新"
               >
-                <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`w-4 h-4 md:w-5 md:h-5 ${loading ? 'animate-spin' : ''}`} />
               </button>
 
               <button
                 onClick={handleNewEntry}
-                className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all duration-200 hover:scale-105 shadow-lg"
+                className="flex items-center gap-1 md:gap-2 px-3 py-2 md:px-6 md:py-3 rounded-lg md:rounded-xl font-bold transition-all duration-200 hover:scale-105 shadow-lg"
                 style={{
                   background: theme.mode === 'glass'
                     ? 'linear-gradient(135deg, rgba(168, 85, 247, 0.9) 0%, rgba(139, 92, 246, 0.9) 100%)'
@@ -179,16 +197,21 @@ function AppContent() {
                   textShadow: theme.mode === 'glass' ? '0 1px 2px rgba(0, 0, 0, 0.3)' : 'none'
                 }}
               >
-                <Plus className="w-5 h-5" />
-                写日记
+                <Plus className="w-4 h-4 md:w-5 md:h-5" />
+                <span className="text-sm md:text-base">写日记</span>
               </button>
             </div>
           </div>
         </div>
       </header>
 
+      {/* Mobile Theme Toggle */}
+      <div className="md:hidden fixed bottom-4 left-4 z-40">
+        <ThemeToggle />
+      </div>
+
       {/* Main Content */}
-      <main className="max-w-6xl mx-auto px-4 py-8">
+      <main className="max-w-6xl mx-auto px-4 py-4 md:py-8">
         {error && (
           <div
             className="mb-6 p-4 rounded-xl border"
@@ -226,12 +249,20 @@ function AppContent() {
           </div>
         ) : (
           <div className="space-y-6">
-            {/* 搜索栏 */}
-            <SearchBar
-              entries={entries}
-              onSearchResults={handleSearchResults}
-              onClearSearch={handleClearSearch}
-            />
+            {/* 搜索栏和显示模式切换 */}
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+              <div className="flex-1 w-full sm:w-auto">
+                <SearchBar
+                  entries={entries}
+                  onSearchResults={handleSearchResults}
+                  onClearSearch={handleClearSearch}
+                />
+              </div>
+              <ViewModeToggle
+                viewMode={viewMode}
+                onViewModeChange={handleViewModeChange}
+              />
+            </div>
 
             {/* 搜索结果提示 */}
             {isSearching && (
@@ -252,7 +283,7 @@ function AppContent() {
             <Timeline
               entries={searchResults || entries}
               onEdit={handleEdit}
-              onDelete={handleDelete}
+              viewMode={viewMode}
             />
           </div>
         )}
@@ -271,11 +302,8 @@ function AppContent() {
         isOpen={isAdminPanelOpen}
         onClose={() => setIsAdminPanelOpen(false)}
         entries={entries}
-        onEntriesUpdate={() => {
-          // 这里需要实现更新entries的逻辑
-          // 暂时使用refreshEntries来重新加载
-          refreshEntries();
-        }}
+        onEntriesUpdate={refreshEntries}
+        onEdit={handleEdit}
       />
 
       {/* Dev Tools */}

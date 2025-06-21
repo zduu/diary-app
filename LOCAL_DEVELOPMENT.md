@@ -12,6 +12,9 @@ npm install
 
 # 启动本地开发服务器（使用Mock数据）
 npm run dev:local
+
+# 启动局域网可访问的开发服务器
+npm run dev:network
 ```
 
 这种方式会：
@@ -32,6 +35,62 @@ npm run dev:remote
 - 连接到 Cloudflare D1 数据库
 - 需要配置 wrangler.toml
 - 需要网络连接
+
+## 🌐 局域网访问
+
+### 启用局域网访问
+
+```bash
+# 启动支持局域网访问的开发服务器
+npm run dev:network
+```
+
+启动后，控制台会显示类似以下信息：
+```
+➜  Local:   http://localhost:5173/
+➜  Network: http://192.168.1.100:5173/
+```
+
+### 访问方式
+
+1. **本机访问**：`http://localhost:5173`
+2. **局域网访问**：`http://你的IP地址:5173`
+
+### 获取本机IP地址
+
+**Windows:**
+```cmd
+ipconfig
+```
+查找 "IPv4 地址" 或 "IP Address"
+
+**macOS/Linux:**
+```bash
+ifconfig
+# 或
+ip addr show
+```
+
+### 防火墙设置
+
+如果局域网设备无法访问，可能需要配置防火墙：
+
+**Windows:**
+1. 打开 Windows Defender 防火墙
+2. 点击"允许应用或功能通过 Windows Defender 防火墙"
+3. 添加端口 5173 的入站规则
+
+**macOS:**
+```bash
+# 临时允许端口 5173
+sudo pfctl -f /etc/pf.conf
+```
+
+### 移动设备访问
+
+1. 确保移动设备与开发机在同一局域网
+2. 在移动设备浏览器中输入：`http://开发机IP:5173`
+3. 可以正常使用所有功能，包括本地Mock数据
 
 ## 🔧 开发工具
 

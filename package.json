@@ -6,15 +6,18 @@
   "scripts": {
     "dev": "vite",
     "dev:local": "vite --mode mock",
+    "dev:network": "vite --mode mock --host",
     "dev:remote": "npm run build && concurrently \"npm run dev\" \"npm run pages:dev\"",
-    "start": "npm run dev:remote",
+    "start": "npm run dev:local",
+    "start:network": "npm run dev:network",
+    "start:remote": "npm run dev:remote",
     "build": "tsc && vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "deploy": "npm run build && wrangler pages deploy dist",
     "pages:dev": "wrangler pages dev dist --compatibility-date=2023-12-01 --d1=DB=diary-db",
     "db:init": "wrangler d1 execute diary-db --local --file=schema.sql",
-    "dev:with-db": "npm run db:init && npm start",
+    "dev:with-db": "npm run db:init && npm run start:remote",
     "pages:deploy": "wrangler pages deploy dist"
   },
   "dependencies": {
