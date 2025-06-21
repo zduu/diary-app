@@ -1,0 +1,294 @@
+import React, { useState } from 'react';
+import { Plus, BookOpen, RefreshCw, Settings } from 'lucide-react';
+import { Timeline } from './components/Timeline';
+import { DiaryForm } from './components/DiaryForm';
+import { AdminPanel, AdminAuthProvider } from './components/AdminPanel';
+import { PasswordProtection } from './components/PasswordProtection';
+import { SearchBar } from './components/SearchBar';
+import { ThemeProvider, useThemeContext } from './components/ThemeProvider';
+import { ThemeToggle } from './components/ThemeToggle';
+import { useDiary } from './hooks/useDiary';
+import { DiaryEntry } from './types';
+
+function AppContent() {
+  const { theme } = useThemeContext();
+  const { entries, loading, error, createEntry, updateEntry, deleteEntry, refreshEntries } = useDiary();
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<DiaryEntry | undefined>();
+  const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [searchResults, setSearchResults] = useState<DiaryEntry[] | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
+
+  const handleSave = async (entryData: Omit<DiaryEntry, 'id' | 'created_at' | 'updated_at'>) => {
+    try {
+      if (editingEntry) {
+        await updateEntry(editingEntry.id!, entryData);
+      } else {
+        await createEntry(entryData);
+      }
+      setIsFormOpen(false);
+      setEditingEntry(undefined);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '操作失败');
+    }
+  };
+
+  const handleEdit = (entry: DiaryEntry) => {
+    setEditingEntry(entry);
+    setIsFormOpen(true);
+  };
+
+  const handleDelete = async (id: number) => {
+    if (confirm('确定要删除这篇日记吗？')) {
+      try {
+        await deleteEntry(id);
+      } catch (err) {
+        alert(err instanceof Error ? err.message : '删除失败');
+      }
+    }
+  };
+
+  const handleCancel = () => {
+    setIsFormOpen(false);
+    setEditingEntry(undefined);
+  };
+
+  const handleSearchResults = (results: DiaryEntry[]) => {
+    setSearchResults(results);
+    setIsSearching(true);
+  };
+
+  const handleClearSearch = () => {
+    setSearchResults(null);
+    setIsSearching(false);
+  };
+
+  const handleNewEntry = () => {
+    setEditingEntry(undefined);
+    setIsFormOpen(true);
+  };
+
+  return (
+    <>
+      {/* 密码保护 */}
+      {!isAuthenticated && (
+        <PasswordProtection onAuthenticated={() => setIsAuthenticated(true)} />
+      )}
+
+      <div
+        className={`min-h-screen transition-all duration-300 ${
+          theme.mode === 'glass' ? 'blog-guide-gradient' : ''
+        }`}
+        style={{
+          backgroundColor: theme.mode === 'glass' ? 'transparent' : theme.colors.background
+        }}
+      >
+      {/* Header */}
+      <header
+        className={`shadow-lg border-b ${theme.effects.blur}`}
+        style={{
+          backgroundColor: theme.mode === 'glass' ? undefined : theme.colors.surface,
+          borderBottomColor: theme.mode === 'glass' ? undefined : theme.colors.border,
+        }}
+      >
+        <div className="max-w-6xl mx-auto px-4 py-6">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-4">
+              <div
+                className="p-2 rounded-xl"
+                style={{
+                  backgroundColor: theme.mode === 'glass'
+                    ? 'rgba(255, 255, 255, 0.2)'
+                    : `${theme.colors.primary}20`
+                }}
+              >
+                <BookOpen
+                  className="w-8 h-8"
+                  style={{
+                    color: theme.mode === 'glass' ? 'white' : theme.colors.primary
+                  }}
+                />
+              </div>
+              <div>
+                <h1
+                  className={`text-3xl font-bold ${theme.mode === 'glass' ? 'text-white' : ''}`}
+                  style={{
+                    color: theme.mode === 'glass' ? 'white' : theme.colors.text,
+                    textShadow: theme.mode === 'glass' ? '0 4px 8px rgba(0, 0, 0, 0.3)' : 'none'
+                  }}
+                >
+                  我的日记
+                </h1>
+                <p
+                  className={`text-sm ${theme.mode === 'glass' ? 'text-white' : ''}`}
+                  style={{
+                    color: theme.mode === 'glass' ? 'rgba(255, 255, 255, 0.8)' : theme.colors.textSecondary,
+                    textShadow: theme.mode === 'glass' ? '0 2px 4px rgba(0, 0, 0, 0.3)' : 'none'
+                  }}
+                >
+                  记录生活，留住美好
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <ThemeToggle />
+
+              <button
+                onClick={() => setIsAdminPanelOpen(true)}
+                className="p-3 rounded-full transition-all duration-200 hover:scale-110"
+                style={{
+                  backgroundColor: theme.mode === 'glass' ? 'rgba(255, 255, 255, 0.2)' : theme.colors.surface,
+                  color: theme.mode === 'glass' ? 'white' : theme.colors.textSecondary,
+                  border: theme.mode === 'glass' ? '1px solid rgba(255, 255, 255, 0.3)' : `1px solid ${theme.colors.border}`
+                }}
+                title="管理员面板"
+              >
+                <Settings className="w-5 h-5" />
+              </button>
+
+              <button
+                onClick={refreshEntries}
+                disabled={loading}
+                className="p-3 rounded-full transition-all duration-200 hover:scale-110 disabled:opacity-50"
+                style={{
+                  backgroundColor: theme.mode === 'glass' ? 'rgba(255, 255, 255, 0.2)' : theme.colors.surface,
+                  color: theme.mode === 'glass' ? 'white' : theme.colors.textSecondary,
+                  border: theme.mode === 'glass' ? '1px solid rgba(255, 255, 255, 0.3)' : `1px solid ${theme.colors.border}`
+                }}
+                title="刷新"
+              >
+                <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+              </button>
+
+              <button
+                onClick={handleNewEntry}
+                className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all duration-200 hover:scale-105 shadow-lg"
+                style={{
+                  background: theme.mode === 'glass'
+                    ? 'linear-gradient(135deg, rgba(168, 85, 247, 0.9) 0%, rgba(139, 92, 246, 0.9) 100%)'
+                    : theme.colors.primary,
+                  color: 'white',
+                  border: theme.mode === 'glass' ? '1px solid rgba(255, 255, 255, 0.3)' : 'none',
+                  backdropFilter: theme.mode === 'glass' ? 'blur(10px)' : 'none',
+                  boxShadow: theme.mode === 'glass'
+                    ? '0 8px 32px rgba(168, 85, 247, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)'
+                    : undefined,
+                  textShadow: theme.mode === 'glass' ? '0 1px 2px rgba(0, 0, 0, 0.3)' : 'none'
+                }}
+              >
+                <Plus className="w-5 h-5" />
+                写日记
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="max-w-6xl mx-auto px-4 py-8">
+        {error && (
+          <div
+            className="mb-6 p-4 rounded-xl border"
+            style={{
+              backgroundColor: `${theme.colors.accent}20`,
+              borderColor: theme.colors.accent,
+              color: theme.colors.text
+            }}
+          >
+            <p>{error}</p>
+            <button
+              onClick={refreshEntries}
+              className="mt-2 underline hover:no-underline transition-colors"
+              style={{ color: theme.colors.accent }}
+            >
+              重试
+            </button>
+          </div>
+        )}
+
+        {loading && entries.length === 0 ? (
+          <div className="flex justify-center items-center py-16">
+            <div className="text-center">
+              <RefreshCw
+                className="w-12 h-12 animate-spin mx-auto mb-4"
+                style={{ color: theme.colors.primary }}
+              />
+              <p
+                className="text-lg"
+                style={{ color: theme.colors.textSecondary }}
+              >
+                加载中...
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {/* 搜索栏 */}
+            <SearchBar
+              entries={entries}
+              onSearchResults={handleSearchResults}
+              onClearSearch={handleClearSearch}
+            />
+
+            {/* 搜索结果提示 */}
+            {isSearching && (
+              <div className="p-3 rounded-lg" style={{
+                backgroundColor: theme.mode === 'glass'
+                  ? 'rgba(255, 255, 255, 0.1)'
+                  : theme.colors.surface,
+                border: `1px solid ${theme.colors.border}`,
+                color: theme.colors.text
+              }}>
+                {searchResults && searchResults.length > 0
+                  ? `找到 ${searchResults.length} 条匹配的日记`
+                  : '没有找到匹配的日记'
+                }
+              </div>
+            )}
+
+            <Timeline
+              entries={searchResults || entries}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+            />
+          </div>
+        )}
+      </main>
+
+      {/* Form Modal */}
+      <DiaryForm
+        entry={editingEntry}
+        onSave={handleSave}
+        onCancel={handleCancel}
+        isOpen={isFormOpen}
+      />
+
+      {/* Admin Panel */}
+      <AdminPanel
+        isOpen={isAdminPanelOpen}
+        onClose={() => setIsAdminPanelOpen(false)}
+        entries={entries}
+        onEntriesUpdate={(newEntries) => {
+          // 这里需要实现更新entries的逻辑
+          // 暂时使用refreshEntries来重新加载
+          refreshEntries();
+        }}
+      />
+      </div>
+    </>
+  );
+}
+
+function App() {
+  return (
+    <ThemeProvider>
+      <AdminAuthProvider>
+        <AppContent />
+      </AdminAuthProvider>
+    </ThemeProvider>
+  );
+}
+
+export default App;

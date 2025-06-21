@@ -1,0 +1,575 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  line-height: 1.6;
+  font-weight: 400;
+
+  /* 默认主题变量 */
+  --color-primary: #3b82f6;
+  --color-secondary: #64748b;
+  --color-background: #ffffff;
+  --color-surface: #f8fafc;
+  --color-text: #1e293b;
+  --color-textSecondary: #64748b;
+  --color-border: #e2e8f0;
+  --color-accent: #06b6d4;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  transition: all 0.3s ease;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* 主题样式 */
+.theme-light {
+  --color-primary: #3b82f6;
+  --color-secondary: #64748b;
+  --color-background: #ffffff;
+  --color-surface: #f8fafc;
+  --color-text: #1e293b;
+  --color-textSecondary: #64748b;
+  --color-border: #e2e8f0;
+  --color-accent: #06b6d4;
+}
+
+.theme-dark {
+  --color-primary: #60a5fa;
+  --color-secondary: #94a3b8;
+  --color-background: #0f172a;
+  --color-surface: #1e293b;
+  --color-text: #f1f5f9;
+  --color-textSecondary: #94a3b8;
+  --color-border: #334155;
+  --color-accent: #22d3ee;
+}
+
+.theme-glass {
+  --color-primary: #667eea;
+  --color-secondary: #764ba2;
+  --color-background: transparent;
+  --color-surface: rgba(45, 27, 77, 0.85);
+  --color-text: #ffffff;
+  --color-textSecondary: rgba(255, 255, 255, 0.95);
+  --color-border: rgba(102, 126, 234, 0.3);
+  --color-accent: #f093fb;
+}
+
+/* 玻璃主题背景 - 参考blog-guide的实现方式 */
+.theme-glass {
+  background: no-repeat center center fixed;
+  background-size: cover;
+  min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* 玻璃主题渐变覆盖层和装饰性背景图案 - 参考blog-guide */
+.theme-glass::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.75) 0%, rgba(118, 75, 162, 0.75) 100%);
+  background-image:
+    radial-gradient(circle at 20% 80%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 40% 40%, rgba(255, 255, 255, 0.05) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: -1;
+  animation: backgroundPulse 8s ease-in-out infinite, float 20s ease-in-out infinite;
+}
+
+@keyframes backgroundPulse {
+  0% { background: linear-gradient(135deg, rgba(102, 126, 234, 0.75) 0%, rgba(118, 75, 162, 0.75) 100%); }
+  50% { background: linear-gradient(135deg, rgba(118, 75, 162, 0.8) 0%, rgba(102, 126, 234, 0.7) 100%); }
+  100% { background: linear-gradient(135deg, rgba(102, 126, 234, 0.75) 0%, rgba(118, 75, 162, 0.75) 100%); }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+    opacity: 0.5;
+  }
+  50% {
+    transform: translateY(-20px) rotate(180deg);
+    opacity: 0.8;
+  }
+}
+
+/* blog-guide渐变类 */
+.blog-guide-gradient {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+/* 确保内容在装饰背景之上 */
+.theme-glass > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* 玻璃主题的头部样式 - 参考blog-guide */
+.theme-glass header {
+  background: transparent !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2) !important;
+  position: relative;
+  z-index: 2;
+}
+
+.theme-glass .text-white {
+  color: white !important;
+  text-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* 玻璃主题的标题样式 */
+.theme-glass h1,
+.theme-glass h2,
+.theme-glass h3 {
+  color: white !important;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* 玻璃主题的卡片样式 - 参考blog-guide的深色半透明卡片 */
+.theme-glass .rounded-xl,
+.theme-glass .rounded-lg {
+  background: rgba(45, 27, 77, 0.85) !important;
+  backdrop-filter: blur(15px) !important;
+  border: 2px solid rgba(102, 126, 234, 0.3) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 0 30px rgba(102, 126, 234, 0.3) !important;
+  position: relative !important;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* 卡片悬停效果 - 参考blog-guide */
+.theme-glass .rounded-xl:hover,
+.theme-glass .rounded-lg:hover {
+  transform: translateY(-8px) !important;
+  box-shadow: 0 25px 50px -12px rgba(102, 126, 234, 0.4) !important;
+  border-color: rgba(102, 126, 234, 0.5) !important;
+}
+
+/* 优化玻璃主题的阴影效果 - 参考blog-guide */
+.theme-glass .shadow-lg {
+  box-shadow: 0 10px 15px -3px rgba(102, 126, 234, 0.2), 0 4px 6px -2px rgba(118, 75, 162, 0.1) !important;
+}
+
+.theme-glass .shadow-xl {
+  box-shadow: 0 20px 25px -5px rgba(102, 126, 234, 0.3), 0 10px 10px -5px rgba(118, 75, 162, 0.2) !important;
+}
+
+.theme-glass .shadow-2xl {
+  box-shadow: 0 25px 50px -12px rgba(102, 126, 234, 0.4) !important;
+}
+
+/* 自定义玻璃阴影 */
+.glass-shadow {
+  box-shadow:
+    0 8px 32px rgba(139, 92, 246, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+}
+
+/* 玻璃渐变 */
+.glass-gradient {
+  background: linear-gradient(135deg,
+    rgba(255, 255, 255, 0.1) 0%,
+    rgba(255, 255, 255, 0.05) 100%);
+}
+
+/* 玻璃主题的卡片悬停效果 - 参考blog-guide */
+.theme-glass [class*="hover:scale-"] {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.theme-glass [class*="hover:scale-"]:hover {
+  transform: translateY(-8px) !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+}
+
+/* 玻璃主题的按钮样式 */
+.theme-glass button {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.theme-glass button:hover {
+  transform: translateY(-2px) !important;
+}
+
+/* 玻璃主题的时间线样式 */
+.theme-glass .absolute[style*="backgroundColor"] {
+  background-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* 玻璃主题的表单样式 - 参考blog-guide */
+.theme-glass input,
+.theme-glass textarea,
+.theme-glass select {
+  background: rgba(45, 27, 77, 0.85) !important;
+  backdrop-filter: blur(15px) !important;
+  border: 2px solid rgba(102, 126, 234, 0.3) !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 15px rgba(102, 126, 234, 0.2) !important;
+}
+
+.theme-glass input::placeholder,
+.theme-glass textarea::placeholder {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.theme-glass input:focus,
+.theme-glass textarea:focus,
+.theme-glass select:focus {
+  border-color: rgba(102, 126, 234, 0.6) !important;
+  box-shadow: 0 0 25px rgba(102, 126, 234, 0.4) !important;
+  outline: none !important;
+}
+
+/* 玻璃主题的header样式 - 参考blog-guide */
+.theme-glass header {
+  background: rgba(45, 27, 77, 0.85) !important;
+  backdrop-filter: blur(15px) !important;
+  border-bottom: 2px solid rgba(102, 126, 234, 0.3) !important;
+  box-shadow: 0 0 30px rgba(102, 126, 234, 0.3) !important;
+}
+
+/* 玻璃主题的按钮样式 */
+.theme-glass button {
+  color: white !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
+  font-weight: 600 !important;
+}
+
+/* 主要按钮样式 - 参考blog-guide */
+.theme-glass button[style*="background"] {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  border: 2px solid rgba(102, 126, 234, 0.3) !important;
+  backdrop-filter: blur(15px) !important;
+  box-shadow: 0 0 20px rgba(102, 126, 234, 0.4) !important;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.theme-glass button[style*="background"]:hover {
+  transform: translateY(-4px) !important;
+  box-shadow: 0 15px 35px rgba(102, 126, 234, 0.5) !important;
+  border-color: rgba(102, 126, 234, 0.6) !important;
+}
+
+/* 暗色主题代码高亮 */
+.theme-dark .hljs {
+  background: var(--color-surface) !important;
+  color: var(--color-text) !important;
+}
+
+.theme-glass .hljs {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: var(--color-text) !important;
+  backdrop-filter: blur(10px);
+}
+
+/* ========== 紫色主题样式 - 参考blog-guide设计 ========== */
+
+/* 紫色主题基础配置和背景 - 纯渐变背景 */
+.theme-purple {
+  --color-primary: #667eea;
+  --color-secondary: #764ba2;
+  --color-background: transparent;
+  --color-surface: rgba(45, 27, 77, 0.85);
+  --color-text: #ffffff;
+  --color-textSecondary: rgba(255, 255, 255, 0.95);
+  --color-border: rgba(102, 126, 234, 0.3);
+  --color-accent: #f093fb;
+
+  /* 纯渐变背景设置 */
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* 紫色主题动态渐变覆盖层 - 增强背景效果 */
+.theme-purple::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.2) 100%);
+  z-index: -1;
+  animation: purpleBackgroundPulse 12s ease-in-out infinite;
+}
+
+@keyframes purpleBackgroundPulse {
+  0% {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.2) 100%);
+    transform: scale(1);
+  }
+  50% {
+    background: linear-gradient(135deg, rgba(118, 75, 162, 0.3) 0%, rgba(102, 126, 234, 0.15) 100%);
+    transform: scale(1.02);
+  }
+  100% {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.2) 100%);
+    transform: scale(1);
+  }
+}
+
+/* 紫色主题装饰性背景图案 - 参考blog-guide */
+.theme-purple::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image:
+    radial-gradient(circle at 20% 80%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 40% 40%, rgba(255, 255, 255, 0.05) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+  animation: purpleFloat 20s ease-in-out infinite;
+}
+
+@keyframes purpleFloat {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+    opacity: 0.5;
+  }
+  50% {
+    transform: translateY(-20px) rotate(180deg);
+    opacity: 0.8;
+  }
+}
+
+/* 紫色渐变类 */
+.purple-gradient {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+/* 紫色阴影类 */
+.purple-shadow {
+  box-shadow:
+    0 8px 32px rgba(102, 126, 234, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+}
+
+/* 确保紫色主题内容在装饰背景之上 */
+.theme-purple > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* 紫色主题的头部样式 - 参考blog-guide */
+.theme-purple header {
+  background: transparent !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2) !important;
+  position: relative;
+  z-index: 2;
+}
+
+.theme-purple .text-white {
+  color: white !important;
+  text-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* 紫色主题的标题样式 */
+.theme-purple h1,
+.theme-purple h2,
+.theme-purple h3 {
+  color: white !important;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* ========== 紫色主题卡片样式 - 参考blog-guide ========== */
+
+/* 紫色主题的卡片样式 - 参考blog-guide的深色半透明卡片 */
+.theme-purple .rounded-xl,
+.theme-purple .rounded-lg {
+  background: rgba(45, 27, 77, 0.85) !important;
+  backdrop-filter: blur(15px) !important;
+  border: 2px solid rgba(102, 126, 234, 0.3) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 0 30px rgba(102, 126, 234, 0.3) !important;
+  position: relative !important;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  animation: purpleCardBreathe 6s ease-in-out infinite;
+}
+
+/* 紫色主题卡片呼吸动画 */
+@keyframes purpleCardBreathe {
+  0%, 100% {
+    transform: scale(1) translateZ(0);
+    box-shadow: 0 0 30px rgba(102, 126, 234, 0.3);
+  }
+  50% {
+    transform: scale(1.005) translateZ(2px);
+    box-shadow: 0 0 35px rgba(102, 126, 234, 0.4);
+  }
+}
+
+/* 紫色主题卡片悬停效果 - 参考blog-guide */
+.theme-purple .rounded-xl:hover,
+.theme-purple .rounded-lg:hover {
+  transform: translateY(-8px) !important;
+  box-shadow: 0 25px 50px -12px rgba(102, 126, 234, 0.4) !important;
+  border-color: rgba(102, 126, 234, 0.5) !important;
+  animation: none !important; /* 停止呼吸动画 */
+}
+
+/* 紫色主题卡片边框发光效果 */
+.theme-purple .rounded-xl::after,
+.theme-purple .rounded-lg::after {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.theme-purple .rounded-xl:hover::after,
+.theme-purple .rounded-lg:hover::after {
+  opacity: 1;
+  animation: purpleBorderSweep 0.6s ease-out;
+}
+
+@keyframes purpleBorderSweep {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* 优化紫色主题的阴影效果 - 参考blog-guide */
+.theme-purple .shadow-lg {
+  box-shadow: 0 10px 15px -3px rgba(102, 126, 234, 0.2), 0 4px 6px -2px rgba(118, 75, 162, 0.1) !important;
+}
+
+.theme-purple .shadow-xl {
+  box-shadow: 0 20px 25px -5px rgba(102, 126, 234, 0.3), 0 10px 10px -5px rgba(118, 75, 162, 0.2) !important;
+}
+
+.theme-purple .shadow-2xl {
+  box-shadow: 0 25px 50px -12px rgba(102, 126, 234, 0.4) !important;
+}
+
+/* ========== 紫色主题表单样式 - 参考blog-guide ========== */
+
+/* 紫色主题的表单样式 - 参考blog-guide */
+.theme-purple input,
+.theme-purple textarea,
+.theme-purple select {
+  background: rgba(45, 27, 77, 0.85) !important;
+  backdrop-filter: blur(15px) !important;
+  border: 2px solid rgba(102, 126, 234, 0.3) !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 15px rgba(102, 126, 234, 0.2) !important;
+  transition: all 0.3s ease !important;
+}
+
+.theme-purple input::placeholder,
+.theme-purple textarea::placeholder {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.theme-purple input:focus,
+.theme-purple textarea:focus,
+.theme-purple select:focus {
+  border-color: rgba(102, 126, 234, 0.6) !important;
+  box-shadow: 0 0 25px rgba(102, 126, 234, 0.4) !important;
+  outline: none !important;
+  transform: translateY(-2px) !important;
+}
+
+/* ========== 紫色主题header样式 - 参考blog-guide ========== */
+
+/* 紫色主题的header样式 - 参考blog-guide */
+.theme-purple header {
+  background: rgba(45, 27, 77, 0.85) !important;
+  backdrop-filter: blur(15px) !important;
+  border-bottom: 2px solid rgba(102, 126, 234, 0.3) !important;
+  box-shadow: 0 0 30px rgba(102, 126, 234, 0.3) !important;
+}
+
+/* ========== 紫色主题按钮样式 - 参考blog-guide ========== */
+
+/* 紫色主题的按钮样式 */
+.theme-purple button {
+  color: white !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
+  font-weight: 600 !important;
+  transition: all 0.3s ease !important;
+}
+
+/* 主要按钮样式 - 参考blog-guide */
+.theme-purple button[style*="background"] {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  border: 2px solid rgba(102, 126, 234, 0.3) !important;
+  backdrop-filter: blur(15px) !important;
+  box-shadow: 0 0 20px rgba(102, 126, 234, 0.4) !important;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.theme-purple button[style*="background"]:hover {
+  transform: translateY(-4px) !important;
+  box-shadow: 0 15px 35px rgba(102, 126, 234, 0.5) !important;
+  border-color: rgba(102, 126, 234, 0.6) !important;
+}
+
+/* 紫色主题代码高亮 */
+.theme-purple .hljs {
+  background: rgba(45, 27, 77, 0.85) !important;
+  color: var(--color-text) !important;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(102, 126, 234, 0.3) !important;
+}
+
+/* 紫色主题滚动条 */
+.theme-purple ::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 3px;
+}
+
+.theme-purple ::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
