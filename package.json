@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "start": "npm run build && concurrently \"npm run dev\" \"npm run pages:dev\"",
+    "dev:local": "vite --mode mock",
+    "dev:remote": "npm run build && concurrently \"npm run dev\" \"npm run pages:dev\"",
+    "start": "npm run dev:remote",
     "build": "tsc && vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",

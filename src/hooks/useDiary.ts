@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { DiaryEntry } from '../types';
-import { DiaryAPI } from '../utils/api';
+import { apiService } from '../services/api';
 
 export function useDiary() {
   const [entries, setEntries] = useState<DiaryEntry[]>([]);
@@ -11,7 +11,7 @@ export function useDiary() {
     try {
       setLoading(true);
       setError(null);
-      const data = await DiaryAPI.getAllEntries();
+      const data = await apiService.getAllEntries();
       setEntries(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : '加载失败');
@@ -22,7 +22,7 @@ export function useDiary() {
 
   const createEntry = async (entry: Omit<DiaryEntry, 'id' | 'created_at' | 'updated_at'>) => {
     try {
-      const newEntry = await DiaryAPI.createEntry(entry);
+      const newEntry = await apiService.createEntry(entry);
       setEntries(prev => [newEntry, ...prev]);
       return newEntry;
     } catch (err) {
@@ -32,7 +32,7 @@ export function useDiary() {
 
   const updateEntry = async (id: number, entry: Partial<DiaryEntry>) => {
     try {
-      const updatedEntry = await DiaryAPI.updateEntry(id, entry);
+      const updatedEntry = await apiService.updateEntry(id, entry);
       setEntries(prev => prev.map(e => e.id === id ? updatedEntry : e));
       return updatedEntry;
     } catch (err) {
@@ -42,7 +42,7 @@ export function useDiary() {
 
   const deleteEntry = async (id: number) => {
     try {
-      await DiaryAPI.deleteEntry(id);
+      await apiService.deleteEntry(id);
       setEntries(prev => prev.filter(e => e.id !== id));
     } catch (err) {
       throw new Error(err instanceof Error ? err.message : '删除失败');

@@ -7,6 +7,7 @@ import { PasswordProtection } from './components/PasswordProtection';
 import { SearchBar } from './components/SearchBar';
 import { ThemeProvider, useThemeContext } from './components/ThemeProvider';
 import { ThemeToggle } from './components/ThemeToggle';
+import { DevTools } from './components/DevTools';
 import { useDiary } from './hooks/useDiary';
 import { DiaryEntry } from './types';
 
@@ -276,6 +277,9 @@ function AppContent() {
           refreshEntries();
         }}
       />
+
+      {/* Dev Tools */}
+      <DevTools />
       </div>
     </>
   );
