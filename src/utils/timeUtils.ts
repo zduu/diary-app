@@ -41,7 +41,7 @@ export function getSmartTimeDisplay(dateString: string): TimeDisplay {
     relative = format(date, 'yyyy年MM月dd日', { locale: zhCN });
   }
   
-  // 绝对时间显示
+  // 绝对时间显示（显示日记的创建时间，而不是当前时间）
   const absolute = format(date, 'HH:mm', { locale: zhCN });
   
   // 详细时间（用于tooltip）

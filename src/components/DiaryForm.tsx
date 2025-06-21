@@ -40,6 +40,19 @@ export function DiaryForm({ entry, onSave, onCancel, isOpen }: DiaryFormProps) {
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
+  // 检测是否为移动设备
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   useEffect(() => {
     if (entry) {
@@ -94,7 +107,7 @@ export function DiaryForm({ entry, onSave, onCancel, isOpen }: DiaryFormProps) {
     setTags(tags.filter(tag => tag !== tagToRemove));
   };
 
-  const handleTagKeyPress = (e: React.KeyboardEvent) => {
+  const handleTagKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault();
       addTag();
@@ -104,38 +117,38 @@ export function DiaryForm({ entry, onSave, onCancel, isOpen }: DiaryFormProps) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center ${isMobile ? 'p-2' : 'p-4'} z-50`}>
       <div
-        className={`rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto ${theme.effects.blur}`}
+        className={`${isMobile ? 'rounded-lg' : 'rounded-xl'} shadow-2xl w-full ${isMobile ? 'max-w-full h-full' : 'max-w-4xl max-h-[90vh]'} overflow-y-auto ${theme.effects.blur}`}
         style={{ backgroundColor: theme.colors.background }}
       >
         <div
-          className="flex justify-between items-center p-6"
+          className={`flex justify-between items-center ${isMobile ? 'p-4' : 'p-6'}`}
           style={{ borderBottom: `1px solid ${theme.colors.border}` }}
         >
           <h2
-            className="text-2xl font-bold"
+            className={`${isMobile ? 'text-lg' : 'text-2xl'} font-bold`}
             style={{ color: theme.colors.text }}
           >
             {entry ? '✏️ 编辑日记' : '📝 写新日记'}
           </h2>
           <button
             onClick={onCancel}
-            className="p-2 rounded-full transition-all duration-200 hover:scale-110"
+            className={`${isMobile ? 'p-1.5' : 'p-2'} rounded-full transition-all duration-200 hover:scale-110`}
             style={{
               backgroundColor: theme.colors.surface,
               color: theme.colors.textSecondary
             }}
           >
-            <X className="w-5 h-5" />
+            <X className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        <form onSubmit={handleSubmit} className={`${isMobile ? 'p-4' : 'p-6'} space-y-${isMobile ? '4' : '6'}`}>
           {/* Title - Optional */}
           <div>
             <label
-              className="block text-sm font-medium mb-2"
+              className={`block ${isMobile ? 'text-xs' : 'text-sm'} font-medium mb-2`}
               style={{ color: theme.colors.text }}
             >
               📝 标题 <span className="text-xs opacity-60">(可选)</span>
@@ -144,7 +157,7 @@ export function DiaryForm({ entry, onSave, onCancel, isOpen }: DiaryFormProps) {
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-4 py-3 rounded-lg border focus:outline-none focus:ring-2 transition-all duration-200"
+              className={`w-full ${isMobile ? 'px-3 py-2' : 'px-4 py-3'} rounded-lg border focus:outline-none focus:ring-2 transition-all duration-200`}
               style={{
                 backgroundColor: theme.colors.surface,
                 borderColor: theme.colors.border,
@@ -155,55 +168,57 @@ export function DiaryForm({ entry, onSave, onCancel, isOpen }: DiaryFormProps) {
             />
           </div>
 
-          {/* Content Type Toggle */}
-          <div>
-            <label
-              className="block text-sm font-medium mb-2"
-              style={{ color: theme.colors.text }}
-            >
-              ✍️ 内容格式
-            </label>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setContentType('markdown')}
-                className={`px-4 py-2 rounded-lg text-sm transition-all duration-200 ${
-                  contentType === 'markdown' ? 'font-medium' : ''
-                }`}
-                style={{
-                  backgroundColor: contentType === 'markdown' ? theme.colors.primary : theme.colors.surface,
-                  color: contentType === 'markdown' ? 'white' : theme.colors.textSecondary,
-                  border: `1px solid ${theme.colors.border}`
-                }}
+          {/* Content Type Toggle - 移动端隐藏 */}
+          {!isMobile && (
+            <div>
+              <label
+                className="block text-sm font-medium mb-2"
+                style={{ color: theme.colors.text }}
               >
-                Markdown
-              </button>
-              <button
-                type="button"
-                onClick={() => setContentType('plain')}
-                className={`px-4 py-2 rounded-lg text-sm transition-all duration-200 ${
-                  contentType === 'plain' ? 'font-medium' : ''
-                }`}
-                style={{
-                  backgroundColor: contentType === 'plain' ? theme.colors.primary : theme.colors.surface,
-                  color: contentType === 'plain' ? 'white' : theme.colors.textSecondary,
-                  border: `1px solid ${theme.colors.border}`
-                }}
-              >
-                纯文本
-              </button>
+                ✍️ 内容格式
+              </label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setContentType('markdown')}
+                  className={`px-4 py-2 rounded-lg text-sm transition-all duration-200 ${
+                    contentType === 'markdown' ? 'font-medium' : ''
+                  }`}
+                  style={{
+                    backgroundColor: contentType === 'markdown' ? theme.colors.primary : theme.colors.surface,
+                    color: contentType === 'markdown' ? 'white' : theme.colors.textSecondary,
+                    border: `1px solid ${theme.colors.border}`
+                  }}
+                >
+                  Markdown
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setContentType('plain')}
+                  className={`px-4 py-2 rounded-lg text-sm transition-all duration-200 ${
+                    contentType === 'plain' ? 'font-medium' : ''
+                  }`}
+                  style={{
+                    backgroundColor: contentType === 'plain' ? theme.colors.primary : theme.colors.surface,
+                    color: contentType === 'plain' ? 'white' : theme.colors.textSecondary,
+                    border: `1px solid ${theme.colors.border}`
+                  }}
+                >
+                  纯文本
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Content */}
-          <div>
+          <div className="flex-1">
             <label
-              className="block text-sm font-medium mb-2"
+              className={`block ${isMobile ? 'text-xs' : 'text-sm'} font-medium mb-2`}
               style={{ color: theme.colors.text }}
             >
               📄 内容
             </label>
-            {contentType === 'markdown' ? (
+            {contentType === 'markdown' && !isMobile ? (
               <MarkdownEditor
                 value={content}
                 onChange={setContent}
@@ -213,132 +228,201 @@ export function DiaryForm({ entry, onSave, onCancel, isOpen }: DiaryFormProps) {
               <textarea
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                rows={12}
-                className="w-full px-4 py-3 rounded-lg border resize-none focus:outline-none focus:ring-2 transition-all duration-200"
+                rows={isMobile ? 16 : 12}
+                className={`w-full ${isMobile ? 'px-3 py-2' : 'px-4 py-3'} rounded-lg border resize-none focus:outline-none focus:ring-2 transition-all duration-200`}
                 style={{
                   backgroundColor: theme.colors.surface,
                   borderColor: theme.colors.border,
                   color: theme.colors.text,
                   '--tw-ring-color': theme.colors.primary,
+                  minHeight: isMobile ? '300px' : 'auto'
                 } as React.CSSProperties}
-                placeholder="详细记录你的想法和感受..."
+                placeholder={isMobile ? "记录你的想法和感受..." : "详细记录你的想法和感受..."}
                 required
               />
             )}
           </div>
 
-          {/* Images */}
-          <div>
-            <label
-              className="block text-sm font-medium mb-2"
-              style={{ color: theme.colors.text }}
-            >
-              🖼️ 图片
-            </label>
-            <ImageUpload
-              images={images}
-              onImagesChange={setImages}
-              maxImages={5}
-            />
-          </div>
-
-          {/* Mood and Weather */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                心情
-              </label>
-              <select
-                value={mood}
-                onChange={(e) => setMood(e.target.value as MoodType)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                {moods.map((m) => (
-                  <option key={m.value} value={m.value}>
-                    {m.emoji} {m.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                天气
-              </label>
-              <select
-                value={weather}
-                onChange={(e) => setWeather(e.target.value as WeatherType)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                {weathers.map((w) => (
-                  <option key={w.value} value={w.value}>
-                    {w.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Tags */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              标签
-            </label>
-            <div className="flex gap-2 mb-2">
-              <input
-                type="text"
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                onKeyPress={handleTagKeyPress}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="添加标签..."
-              />
+          {/* 移动端高级选项切换 */}
+          {isMobile && (
+            <div className="text-center">
               <button
                 type="button"
-                onClick={addTag}
-                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+                onClick={() => setShowAdvanced(!showAdvanced)}
+                className="px-4 py-2 rounded-lg text-sm transition-all duration-200"
+                style={{
+                  backgroundColor: theme.colors.surface,
+                  color: theme.colors.primary,
+                  border: `1px solid ${theme.colors.border}`
+                }}
               >
-                添加
+                {showAdvanced ? '收起高级选项' : '展开高级选项'} ({showAdvanced ? '▲' : '▼'})
               </button>
             </div>
-            <div className="flex flex-wrap gap-2">
-              {tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="px-2 py-1 bg-blue-100 text-blue-800 text-sm rounded-full flex items-center gap-1"
+          )}
+
+          {/* 高级选项区域 */}
+          {(showAdvanced || !isMobile) && (
+            <>
+              {/* Images */}
+              <div>
+                <label
+                  className={`block ${isMobile ? 'text-xs' : 'text-sm'} font-medium mb-2`}
+                  style={{ color: theme.colors.text }}
                 >
-                  #{tag}
+                  🖼️ 图片
+                </label>
+                <ImageUpload
+                  images={images}
+                  onImagesChange={setImages}
+                  maxImages={5}
+                />
+              </div>
+
+              {/* Mood and Weather */}
+              <div className={`grid grid-cols-1 ${isMobile ? 'gap-3' : 'md:grid-cols-2 gap-4'}`}>
+                <div>
+                  <label
+                    className={`block ${isMobile ? 'text-xs' : 'text-sm'} font-medium mb-2`}
+                    style={{ color: theme.colors.text }}
+                  >
+                    😊 心情
+                  </label>
+                  <select
+                    value={mood}
+                    onChange={(e) => setMood(e.target.value as MoodType)}
+                    className={`w-full ${isMobile ? 'px-3 py-2' : 'px-3 py-2'} border rounded-md focus:outline-none focus:ring-2 transition-all duration-200`}
+                    style={{
+                      backgroundColor: theme.colors.surface,
+                      borderColor: theme.colors.border,
+                      color: theme.colors.text,
+                      '--tw-ring-color': theme.colors.primary,
+                    } as React.CSSProperties}
+                  >
+                    {moods.map((m) => (
+                      <option key={m.value} value={m.value}>
+                        {m.emoji} {m.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label
+                    className={`block ${isMobile ? 'text-xs' : 'text-sm'} font-medium mb-2`}
+                    style={{ color: theme.colors.text }}
+                  >
+                    🌤️ 天气
+                  </label>
+                  <select
+                    value={weather}
+                    onChange={(e) => setWeather(e.target.value as WeatherType)}
+                    className={`w-full ${isMobile ? 'px-3 py-2' : 'px-3 py-2'} border rounded-md focus:outline-none focus:ring-2 transition-all duration-200`}
+                    style={{
+                      backgroundColor: theme.colors.surface,
+                      borderColor: theme.colors.border,
+                      color: theme.colors.text,
+                      '--tw-ring-color': theme.colors.primary,
+                    } as React.CSSProperties}
+                  >
+                    {weathers.map((w) => (
+                      <option key={w.value} value={w.value}>
+                        {w.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Tags */}
+              <div>
+                <label
+                  className={`block ${isMobile ? 'text-xs' : 'text-sm'} font-medium mb-2`}
+                  style={{ color: theme.colors.text }}
+                >
+                  🏷️ 标签
+                </label>
+                <div className="flex gap-2 mb-2">
+                  <input
+                    type="text"
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    onKeyDown={handleTagKeyDown}
+                    className={`flex-1 ${isMobile ? 'px-3 py-2' : 'px-3 py-2'} border rounded-md focus:outline-none focus:ring-2 transition-all duration-200`}
+                    style={{
+                      backgroundColor: theme.colors.surface,
+                      borderColor: theme.colors.border,
+                      color: theme.colors.text,
+                      '--tw-ring-color': theme.colors.primary,
+                    } as React.CSSProperties}
+                    placeholder="添加标签..."
+                  />
                   <button
                     type="button"
-                    onClick={() => removeTag(tag)}
-                    className="text-blue-600 hover:text-blue-800"
+                    onClick={addTag}
+                    className={`${isMobile ? 'px-3 py-2' : 'px-4 py-2'} rounded-md transition-colors`}
+                    style={{
+                      backgroundColor: theme.colors.primary,
+                      color: 'white'
+                    }}
                   >
-                    ×
+                    {isMobile ? '+' : '添加'}
                   </button>
-                </span>
-              ))}
-            </div>
-          </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className={`px-2 py-1 ${isMobile ? 'text-xs' : 'text-sm'} rounded-full flex items-center gap-1`}
+                      style={{
+                        backgroundColor: `${theme.colors.primary}20`,
+                        color: theme.colors.primary,
+                        border: `1px solid ${theme.colors.primary}40`
+                      }}
+                    >
+                      #{tag}
+                      <button
+                        type="button"
+                        onClick={() => removeTag(tag)}
+                        className="hover:opacity-80 transition-opacity"
+                        style={{ color: theme.colors.primary }}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
 
           {/* Actions */}
-          <div className="flex justify-end gap-3 pt-4 border-t">
+          <div
+            className={`flex ${isMobile ? 'flex-col gap-2' : 'justify-end gap-3'} pt-4`}
+            style={{ borderTop: `1px solid ${theme.colors.border}` }}
+          >
             <button
               type="button"
               onClick={onCancel}
-              className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+              className={`${isMobile ? 'w-full py-3' : 'px-4 py-2'} rounded-md transition-colors`}
+              style={{
+                color: theme.colors.textSecondary,
+                border: `1px solid ${theme.colors.border}`,
+                backgroundColor: theme.colors.surface
+              }}
             >
               取消
             </button>
             <button
               type="submit"
               disabled={loading || !content.trim()}
-              className="px-6 py-3 rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center gap-2 hover:scale-105"
+              className={`${isMobile ? 'w-full py-3' : 'px-6 py-3'} rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-2 ${!isMobile ? 'hover:scale-105' : ''}`}
               style={{
                 backgroundColor: theme.colors.primary,
                 color: 'white'
               }}
             >
-              <Save className="w-5 h-5" />
+              <Save className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
               {loading ? '保存中...' : '保存日记'}
             </button>
           </div>

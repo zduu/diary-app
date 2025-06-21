@@ -89,7 +89,7 @@ export function TimelineView({ entries, onEdit }: TimelineViewProps) {
         }}
       />
 
-      <div className="space-y-8">
+      <div className="space-y-12">
         {visibleEntries.map((entry, index) => {
           const timeDisplay = getSmartTimeDisplay(entry.created_at!);
           const mood = (entry.mood as MoodType) || 'neutral';
@@ -99,15 +99,25 @@ export function TimelineView({ entries, onEdit }: TimelineViewProps) {
             <div key={entry.id} className="relative">
               {/* 时间节点 */}
               <div
-                className={`absolute ${isMobile ? 'left-4' : 'left-6'} top-0 ${isMobile ? 'w-4 h-4' : 'w-6 h-6'} rounded-full border-2 z-10`}
+                className={`absolute ${isMobile ? 'left-4' : 'left-6'} top-0 ${isMobile ? 'w-4 h-4' : 'w-6 h-6'} rounded-full border-2 z-10 shadow-lg`}
                 style={{
-                  backgroundColor: theme.mode === 'glass' ? 'white' : theme.colors.surface,
-                  borderColor: theme.mode === 'glass' ? 'white' : theme.colors.primary,
+                  backgroundColor: theme.mode === 'glass' ? '#c084fc' : theme.colors.surface,
+                  borderColor: theme.mode === 'glass' ? '#a855f7' : theme.colors.primary,
+                  boxShadow: theme.mode === 'glass'
+                    ? '0 4px 8px rgba(192, 132, 252, 0.4)'
+                    : `0 4px 8px ${theme.colors.primary}40`,
                 }}
               />
 
               {/* 内容区域 */}
-              <div className={`${isMobile ? 'ml-12' : 'ml-16'} pb-8`}>
+              <div
+                className={`${isMobile ? 'ml-12' : 'ml-16'} pb-12 relative`}
+                style={{
+                  borderBottom: index < visibleEntries.length - 1
+                    ? `1px solid ${theme.mode === 'glass' ? 'rgba(255, 255, 255, 0.1)' : theme.colors.border}20`
+                    : 'none'
+                }}
+              >
                 {/* 时间信息 */}
                 <div className="flex items-center gap-4 mb-4">
                   <div
@@ -197,9 +207,16 @@ export function TimelineView({ entries, onEdit }: TimelineViewProps) {
                         key={tagIndex}
                         className={`px-2 py-1 rounded-full ${isMobile ? 'text-xs' : 'text-sm'}`}
                         style={{
-                          backgroundColor: `${theme.colors.primary}20`,
-                          color: theme.colors.primary,
-                          border: `1px solid ${theme.colors.primary}40`
+                          backgroundColor: theme.mode === 'glass'
+                            ? 'rgba(255, 255, 255, 0.25)'
+                            : `${theme.colors.primary}20`,
+                          color: theme.mode === 'glass'
+                            ? '#ffffff'
+                            : theme.colors.primary,
+                          border: theme.mode === 'glass'
+                            ? '1px solid rgba(255, 255, 255, 0.4)'
+                            : `1px solid ${theme.colors.primary}40`,
+                          backdropFilter: theme.mode === 'glass' ? 'blur(8px)' : 'none'
                         }}
                       >
                         #{tag}
@@ -208,27 +225,43 @@ export function TimelineView({ entries, onEdit }: TimelineViewProps) {
                   </div>
                 )}
 
-                {/* 心情和天气 */}
+                {/* 心情、天气和具体日期 */}
                 <div className={`flex items-center gap-4 ${isMobile ? 'text-xs' : 'text-sm'}`}>
                   <div className="flex items-center gap-1">
                     <span className={isMobile ? 'text-base' : 'text-lg'}>{moodIcons[mood].icon}</span>
-                    <span style={{ color: theme.colors.textSecondary }}>
+                    <span style={{
+                      color: theme.mode === 'glass'
+                        ? 'rgba(255, 255, 255, 0.95)'
+                        : theme.colors.primary,
+                      fontWeight: '500'
+                    }}>
                       {!isMobile && '心情'}
                     </span>
                   </div>
-                  
+
                   <div className="flex items-center gap-1">
                     {weatherIcons[weather]}
-                    <span style={{ color: theme.colors.textSecondary }}>
+                    <span style={{
+                      color: theme.mode === 'glass'
+                        ? 'rgba(255, 255, 255, 0.8)'
+                        : theme.colors.textSecondary
+                    }}>
                       {!isMobile && '天气'}
                     </span>
-                  </div>
-
-                  <div
-                    className="text-xs opacity-60"
-                    style={{ color: theme.colors.textSecondary }}
-                  >
-                    {timeDisplay.absolute}
+                    <span
+                      className="ml-2"
+                      style={{
+                        color: theme.mode === 'glass'
+                          ? 'rgba(255, 255, 255, 0.8)'
+                          : theme.colors.textSecondary
+                      }}
+                    >
+                      {new Date(entry.created_at!).toLocaleDateString('zh-CN', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit'
+                      })}
+                    </span>
                   </div>
                 </div>
               </div>

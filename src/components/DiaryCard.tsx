@@ -51,11 +51,14 @@ export function DiaryCard({ entry, onEdit }: DiaryCardProps) {
   return (
     <div
       className={`rounded-xl transition-all duration-300 hover:scale-[1.02] ${theme.effects.blur} ${theme.effects.shadow} ${
-        isMobile ? 'p-4' : 'p-6'
-      }`}
+        isMobile ? 'p-4 mb-6' : 'p-6 mb-8'
+      } relative`}
       style={{
         backgroundColor: theme.mode === 'glass' ? undefined : theme.colors.surface,
         border: theme.mode === 'glass' ? undefined : `1px solid ${theme.colors.border}`,
+        boxShadow: theme.mode === 'glass'
+          ? undefined
+          : `0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)`,
       }}
     >
       {/* Header */}
@@ -247,9 +250,16 @@ export function DiaryCard({ entry, onEdit }: DiaryCardProps) {
               key={index}
               className={`px-3 py-1 rounded-full transition-colors duration-200 ${isMobile ? 'text-xs' : 'text-sm'}`}
               style={{
-                backgroundColor: `${theme.colors.primary}20`,
-                color: theme.colors.primary,
-                border: `1px solid ${theme.colors.primary}40`
+                backgroundColor: theme.mode === 'glass'
+                  ? 'rgba(255, 255, 255, 0.25)'
+                  : `${theme.colors.primary}20`,
+                color: theme.mode === 'glass'
+                  ? '#ffffff'
+                  : theme.colors.primary,
+                border: theme.mode === 'glass'
+                  ? '1px solid rgba(255, 255, 255, 0.4)'
+                  : `1px solid ${theme.colors.primary}40`,
+                backdropFilter: theme.mode === 'glass' ? 'blur(8px)' : 'none'
               }}
             >
               #{tag}
@@ -271,9 +281,9 @@ export function DiaryCard({ entry, onEdit }: DiaryCardProps) {
       )}
 
       {/* Footer - 移动端简化显示 */}
-      <div className={`flex justify-between items-center ${isMobile ? 'text-xs opacity-60' : 'text-sm'}`}>
+      <div className={`flex justify-between items-center ${isMobile ? 'text-xs' : 'text-sm'}`}>
         <div className={`flex items-center ${isMobile ? 'gap-3' : 'gap-4'}`}>
-          {/* 移动端只显示心情和天气，时间信息已在Timeline中显示 */}
+          {/* 移动端显示心情、天气和具体日期 */}
           {isMobile ? (
             <>
               <div className="flex items-center gap-1">
@@ -282,12 +292,29 @@ export function DiaryCard({ entry, onEdit }: DiaryCardProps) {
               <div className="flex items-center gap-1">
                 {weatherIcons[weather]}
               </div>
+              <div className="flex items-center gap-1">
+                <span style={{
+                  color: theme.mode === 'glass'
+                    ? 'rgba(255, 255, 255, 0.9)'
+                    : theme.colors.textSecondary
+                }}>
+                  {new Date(entry.created_at!).toLocaleDateString('zh-CN', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit'
+                  })}
+                </span>
+              </div>
             </>
           ) : (
             <>
               <div
                 className="flex items-center gap-1"
-                style={{ color: theme.colors.textSecondary }}
+                style={{
+                  color: theme.mode === 'glass'
+                    ? 'rgba(255, 255, 255, 0.8)'
+                    : theme.colors.textSecondary
+                }}
                 title={timeDisplay.tooltip}
               >
                 <Calendar className="w-4 h-4" />
@@ -296,18 +323,33 @@ export function DiaryCard({ entry, onEdit }: DiaryCardProps) {
 
               <div
                 className="flex items-center gap-1"
-                style={{ color: theme.colors.textSecondary }}
+                style={{
+                  color: theme.mode === 'glass'
+                    ? 'rgba(255, 255, 255, 0.95)'
+                    : theme.colors.primary
+                }}
               >
                 <span className="text-lg">{moodIcons[mood].icon}</span>
-                <span className={moodIcons[mood].color}>心情</span>
+                <span className="font-medium">心情</span>
               </div>
 
               <div
                 className="flex items-center gap-1"
-                style={{ color: theme.colors.textSecondary }}
+                style={{
+                  color: theme.mode === 'glass'
+                    ? 'rgba(255, 255, 255, 0.8)'
+                    : theme.colors.textSecondary
+                }}
               >
                 {weatherIcons[weather]}
                 <span>天气</span>
+                <span className="ml-2">
+                  {new Date(entry.created_at!).toLocaleDateString('zh-CN', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit'
+                  })}
+                </span>
               </div>
             </>
           )}

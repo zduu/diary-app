@@ -79,7 +79,7 @@ export function Timeline({ entries, onEdit, viewMode }: TimelineProps) {
 
   return (
     <div className={`${isMobile ? 'max-w-full' : 'max-w-4xl'} mx-auto`}>
-      <div className="space-y-4">
+      <div className="space-y-6">
         {timelineItems.map((item) => {
           if (item.type === 'date') {
             return (

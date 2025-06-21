@@ -61,14 +61,14 @@ const themes: Record<ThemeMode, ThemeConfig> = {
   glass: {
     mode: 'glass',
     colors: {
-      primary: '#667eea',
-      secondary: '#764ba2',
+      primary: '#8b5cf6',
+      secondary: '#a78bfa',
       background: 'transparent',
-      surface: 'rgba(45, 27, 77, 0.85)',
-      text: '#ffffff',
-      textSecondary: 'rgba(255, 255, 255, 0.95)',
-      border: 'rgba(102, 126, 234, 0.3)',
-      accent: '#f093fb',
+      surface: 'rgba(45, 27, 77, 0.75)',
+      text: '#f8fafc',
+      textSecondary: 'rgba(248, 250, 252, 0.85)',
+      border: 'rgba(139, 92, 246, 0.4)',
+      accent: '#c084fc',
     },
     effects: {
       blur: 'backdrop-blur-md',
