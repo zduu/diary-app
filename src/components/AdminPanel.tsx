@@ -99,7 +99,12 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
       setSettings(prev => ({
         ...prev,
         adminPassword: allSettings.admin_password || 'admin123',
+        passwordProtection: allSettings.app_password_enabled === 'true',
       }));
+
+      // 同时加载密码设置
+      const passwordSettings = await getPasswordSettings();
+      setCurrentPasswordSettings(passwordSettings);
     } catch (error) {
       console.error('加载设置失败:', error);
     }
@@ -116,19 +121,24 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
   const [newPassword, setNewPassword] = useState('');
   const [showAppPasswordSettings, setShowAppPasswordSettings] = useState(false);
   const [newAppPassword, setNewAppPassword] = useState('');
+  const [currentPasswordSettings, setCurrentPasswordSettings] = useState<PasswordSettings>({ enabled: false, password: 'diary123' });
 
-  // 从localStorage加载设置
-  useEffect(() => {
-    const savedSettings = localStorage.getItem('diary-admin-settings');
-    if (savedSettings) {
-      setSettings(JSON.parse(savedSettings));
+  // 保存设置到数据库
+  const saveSettings = async (newSettings: AdminSettings) => {
+    try {
+      // 保存到数据库
+      await apiService.setSetting('admin_password', newSettings.adminPassword);
+      await apiService.setSetting('app_password_enabled', newSettings.passwordProtection.toString());
+
+      // 更新本地状态
+      setSettings(newSettings);
+
+      console.log('设置已保存到数据库');
+    } catch (error) {
+      console.error('保存设置失败:', error);
+      // 如果数据库保存失败，至少更新本地状态
+      setSettings(newSettings);
     }
-  }, []);
-
-  // 保存设置到localStorage
-  const saveSettings = (newSettings: AdminSettings) => {
-    setSettings(newSettings);
-    localStorage.setItem('diary-admin-settings', JSON.stringify(newSettings));
   };
 
   // 验证密码
@@ -282,7 +292,6 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
       await apiService.setSetting('admin_password', newPassword);
       const newSettings = { ...settings, adminPassword: newPassword };
       setSettings(newSettings);
-      saveSettings(newSettings); // 同时保存到localStorage作为备份
       setNewPassword('');
       setShowPasswordSettings(false);
       alert('密码修改成功！');
@@ -292,34 +301,43 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
   };
 
   // 获取应用密码设置
-  const getPasswordSettings = (): PasswordSettings => {
-    const settings = localStorage.getItem('diary-password-settings');
-    if (settings) {
-      return JSON.parse(settings);
+  const getPasswordSettings = async (): Promise<PasswordSettings> => {
+    try {
+      const allSettings = await apiService.getAllSettings();
+      return {
+        enabled: allSettings.app_password_enabled === 'true',
+        password: allSettings.app_password || 'diary123'
+      };
+    } catch (error) {
+      console.error('获取应用密码设置失败:', error);
+      return { enabled: false, password: 'diary123' };
     }
-    return { enabled: false, password: 'diary123' };
   };
 
   // 保存应用密码设置
-  const savePasswordSettings = async (settings: PasswordSettings) => {
+  const savePasswordSettings = async (passwordSettings: PasswordSettings) => {
     try {
-      await apiService.setSetting('app_password_enabled', settings.enabled.toString());
-      await apiService.setSetting('app_password', settings.password);
-      localStorage.setItem('diary-password-settings', JSON.stringify(settings));
+      await apiService.setSetting('app_password_enabled', passwordSettings.enabled.toString());
+      await apiService.setSetting('app_password', passwordSettings.password);
+
+      // 同时更新本地设置状态
+      const newSettings = { ...settings, passwordProtection: passwordSettings.enabled };
+      setSettings(newSettings);
+      setCurrentPasswordSettings(passwordSettings);
+
+      console.log('应用密码设置已保存到数据库');
     } catch (error) {
       console.error('保存应用密码设置失败:', error);
-      // 如果后端保存失败，至少保存到localStorage
-      localStorage.setItem('diary-password-settings', JSON.stringify(settings));
+      throw error;
     }
   };
 
   // 切换应用密码保护
   const toggleAppPasswordProtection = async () => {
     try {
-      const currentSettings = getPasswordSettings();
-      const newSettings = { ...currentSettings, enabled: !currentSettings.enabled };
+      const newSettings = { ...currentPasswordSettings, enabled: !currentPasswordSettings.enabled };
       await savePasswordSettings(newSettings);
-      alert(newSettings.enabled ? '应用密码保护已开启' : '应用密码保护已关闭');
+      alert(`应用密码保护已${newSettings.enabled ? '开启' : '关闭'}！`);
     } catch (error) {
       alert('设置修改失败：' + (error instanceof Error ? error.message : '未知错误'));
     }
@@ -333,8 +351,7 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
     }
 
     try {
-      const currentSettings = getPasswordSettings();
-      const newSettings = { ...currentSettings, password: newAppPassword };
+      const newSettings = { ...currentPasswordSettings, password: newAppPassword };
       await savePasswordSettings(newSettings);
       setNewAppPassword('');
       setShowAppPasswordSettings(false);
@@ -554,17 +571,17 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
                       color: theme.colors.text,
                     }}
                   >
-                    {getPasswordSettings().enabled ? (
+                    {currentPasswordSettings.enabled ? (
                       <Lock className="w-5 h-5" style={{ color: theme.colors.primary }} />
                     ) : (
                       <Unlock className="w-5 h-5" style={{ color: theme.colors.primary }} />
                     )}
                     <div className="text-left">
                       <div className="font-medium">
-                        {getPasswordSettings().enabled ? '关闭' : '开启'}应用密码保护
+                        {currentPasswordSettings.enabled ? '关闭' : '开启'}应用密码保护
                       </div>
                       <div className="text-sm" style={{ color: theme.colors.textSecondary }}>
-                        {getPasswordSettings().enabled ? '允许无密码访问' : '需要密码才能访问应用'}
+                        {currentPasswordSettings.enabled ? '允许无密码访问' : '需要密码才能访问应用'}
                       </div>
                     </div>
                   </button>
@@ -623,7 +640,7 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
                       </button>
                     </div>
                     <p className="text-xs mt-2" style={{ color: theme.colors.textSecondary }}>
-                      当前密码：{getPasswordSettings().password}
+                      当前密码：{currentPasswordSettings.password}
                     </p>
                   </div>
                 )}
