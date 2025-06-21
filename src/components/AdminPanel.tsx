@@ -196,7 +196,7 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
           if (confirmImport) {
             try {
               await apiService.batchImportEntries(data.entries);
-              onEntriesUpdate(data.entries); // 更新本地状态
+              onEntriesUpdate(); // 刷新数据
               alert('导入成功！');
             } catch (error) {
               alert('导入失败：' + (error instanceof Error ? error.message : '未知错误'));

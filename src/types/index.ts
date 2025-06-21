@@ -19,5 +19,5 @@ export interface ApiResponse<T = any> {
   message?: string;
 }
 
-export type MoodType = 'happy' | 'sad' | 'neutral' | 'excited' | 'anxious' | 'peaceful';
+export type MoodType = 'happy' | 'sad' | 'neutral' | 'excited' | 'anxious' | 'peaceful' | 'calm' | 'angry' | 'grateful' | 'loved';
 export type WeatherType = 'sunny' | 'cloudy' | 'rainy' | 'snowy' | 'unknown';

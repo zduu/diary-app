@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Clock, Calendar } from 'lucide-react';
 import { DiaryEntry } from '../types';
 import { DiaryCard } from './DiaryCard';

@@ -18,6 +18,10 @@ const moodIcons: Record<MoodType, { icon: React.ReactNode; color: string }> = {
   excited: { icon: '🤩', color: 'text-orange-500' },
   anxious: { icon: '😰', color: 'text-red-500' },
   peaceful: { icon: '😌', color: 'text-green-500' },
+  calm: { icon: '😌', color: 'text-green-500' },
+  angry: { icon: '😠', color: 'text-red-500' },
+  grateful: { icon: '🙏', color: 'text-purple-500' },
+  loved: { icon: '🥰', color: 'text-pink-500' }
 };
 
 const weatherIcons: Record<WeatherType, React.ReactNode> = {

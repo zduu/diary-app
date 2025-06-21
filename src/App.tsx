@@ -14,7 +14,7 @@ import { DiaryEntry } from './types';
 
 function AppContent() {
   const { theme } = useThemeContext();
-  const { entries, loading, error, createEntry, updateEntry, deleteEntry, refreshEntries } = useDiary();
+  const { entries, loading, error, createEntry, updateEntry, refreshEntries } = useDiary();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<DiaryEntry | undefined>();
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
@@ -56,15 +56,7 @@ function AppContent() {
     setIsFormOpen(true);
   };
 
-  const handleDelete = async (id: number) => {
-    if (confirm('确定要删除这篇日记吗？')) {
-      try {
-        await deleteEntry(id);
-      } catch (err) {
-        alert(err instanceof Error ? err.message : '删除失败');
-      }
-    }
-  };
+
 
   const handleCancel = () => {
     setIsFormOpen(false);

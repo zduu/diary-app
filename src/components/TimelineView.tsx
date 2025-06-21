@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Clock, Calendar, Edit, Heart, Sun, Cloud, CloudRain, Snowflake, Eye, EyeOff } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Clock, Edit, Sun, Cloud, CloudRain, Snowflake } from 'lucide-react';
 import { DiaryEntry, MoodType, WeatherType } from '../types';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { getSmartTimeDisplay } from '../utils/timeUtils';
