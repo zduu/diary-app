@@ -6,12 +6,12 @@ pages_build_output_dir = "dist"
 [[d1_databases]]
 binding = "DB"
 database_name = "diary-db"
-database_id = "bf6cb2c5-4ae1-4451-bff9-890295639e98"
+database_id = "d06caa21-556e-477f-bf86-959dd894e047"
 
 # KV namespace for session storage (optional)
 [[kv_namespaces]]
 binding = "SESSIONS"
-id = "your-kv-namespace-id-here"
+id = "df5ca1583e2645328dda4d28cab3fcca"
 preview_id = "your-preview-kv-namespace-id-here"
 
 [vars]

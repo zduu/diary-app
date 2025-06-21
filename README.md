@@ -2,10 +2,12 @@
 
 一个基于 React + TypeScript + Cloudflare 技术栈构建的现代化日记应用，支持 Markdown 语法、图片上传、多主题切换、管理员面板等功能。
 
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
+🌐 **在线演示**: [diary.edxx.de](https://diary.edxx.de)
+📦 **项目仓库**: [github.com/zduu/diary-app](https://github.com/zduu/diary-app)
+
 ![React](https://img.shields.io/badge/React-18-blue.svg)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue.svg)
-![Cloudflare](https://img.shields.io/badge/Cloudflare-Workers-orange.svg)
+![Cloudflare](https://img.shields.io/badge/Cloudflare-Pages-orange.svg)
 
 ## ✨ 功能特色
 
@@ -36,7 +38,7 @@
 ### 🔧 技术特性
 - **全栈应用**: 前后端一体化部署
 - **云端存储**: 基于 Cloudflare D1 数据库
-- **边缘计算**: 利用 Cloudflare Workers 提供快速响应
+- **边缘计算**: 利用 Cloudflare Pages Functions 提供快速响应
 - **自动部署**: Cloudflare Pages 直接连接 GitHub 自动部署
 
 ## 🚀 快速开始
@@ -50,14 +52,13 @@
 
 1. **克隆项目**
    ```bash
-   git clone https://github.com/your-username/diary-app.git
+   git clone https://github.com/zduu/diary-app.git
    cd diary-app
    ```
 
 2. **安装依赖**
    ```bash
    npm install
-   cd worker && npm install && cd ..
    ```
 
 3. **配置数据库**
@@ -66,8 +67,8 @@
    npx wrangler d1 create diary-db
 
    # 复制返回的数据库 ID，更新 wrangler.toml 中的 database_id
-   # 应用数据库 schema
-   npx wrangler d1 execute diary-db --local --file=schema.sql
+   # 初始化远程数据库
+   npx wrangler d1 execute diary-db --remote --file=schema.sql
    ```
 
 4. **启动开发服务器**
@@ -75,7 +76,9 @@
    npm start
    ```
 
-应用将在 http://localhost:5173 启动，API 服务在 http://localhost:8787
+应用将在 http://localhost:5173 启动，API 服务在 http://localhost:8788
+
+> **⚠️ 本地开发说明**: 本地开发环境使用远程 Cloudflare D1 数据库，因此需要网络连接。如果本地无法正常显示数据，请直接部署到生产环境测试，因为本地 Pages Functions 模拟环境与远程数据库的连接可能存在兼容性问题。
 
 ### 默认密码
 - **管理员密码**: `admin123`
@@ -129,16 +132,14 @@
 2. **创建并初始化数据库**
    ```bash
    npx wrangler d1 create diary-db
-   npx wrangler d1 execute diary-db --file=schema.sql
+   npx wrangler d1 execute diary-db --remote --file=schema.sql
    ```
 
 3. **更新 wrangler.toml 中的数据库 ID**
 
 4. **构建并部署**
    ```bash
-   npm run build
-   npx wrangler pages deploy dist --project-name=diary-app
-   cd worker && npx wrangler deploy
+   npm run deploy
    ```
 
 ## 📁 项目结构
@@ -151,8 +152,8 @@ diary-app/
 │   ├── services/          # API 服务
 │   ├── utils/             # 工具函数
 │   └── types/             # TypeScript 类型定义
-├── worker/                # Cloudflare Worker 后端
-│   └── src/               # Worker 源码
+├── functions/             # Cloudflare Pages Functions 后端
+│   └── api/               # API 路由
 ├── schema.sql             # 数据库结构
 ├── wrangler.toml          # Cloudflare 配置
 └── dist/                  # 构建输出目录
@@ -168,13 +169,13 @@ diary-app/
 - **Lucide React**: 现代化图标库
 
 ### 后端
-- **Cloudflare Workers**: 边缘计算平台
+- **Cloudflare Pages Functions**: 边缘计算平台
 - **Cloudflare D1**: SQLite 兼容的边缘数据库
-- **Hono**: 轻量级 Web 框架
+- **TypeScript**: 类型安全的后端开发
 
 ### 部署
 - **Cloudflare Pages**: 静态网站托管 + 自动部署
-- **Cloudflare Functions**: 后端 API 自动部署
+- **Cloudflare Pages Functions**: 后端 API 自动部署
 
 ## 🎯 使用指南
 
@@ -242,7 +243,10 @@ database_id = "your-database-id-here"
 A: 登录 [Cloudflare Dashboard](https://dash.cloudflare.com) > "My Profile" > "API Tokens" > "Create Token" > 选择 "Cloudflare Pages:Edit" 模板
 
 ### Q: 数据库如何初始化？
-A: 使用 `npx wrangler d1 create diary-db` 创建数据库，然后用 `npx wrangler d1 execute diary-db --local --file=schema.sql` 初始化
+A: 使用 `npx wrangler d1 create diary-db` 创建数据库，然后用 `npx wrangler d1 execute diary-db --remote --file=schema.sql` 初始化远程数据库
+
+### Q: 为什么本地开发无法显示数据？
+A: 本地开发环境使用远程 Cloudflare D1 数据库，Pages Functions 的本地模拟环境可能与远程数据库连接存在兼容性问题。建议直接部署到生产环境进行测试，生产环境完全正常。
 
 ### Q: 忘记管理员密码怎么办？
 A: 可以直接修改数据库中的 `app_settings` 表，或重新运行 `schema.sql` 重置为默认密码 `admin123`
@@ -253,10 +257,6 @@ A: 可以直接修改数据库中的 `app_settings` 表，或重新运行 `schem
 - **🎨 美观**: 三种主题 + 响应式设计
 - **⚡ 快速**: Cloudflare 边缘计算
 - **📱 现代**: PWA 支持 + 离线功能
-
-## � 许可证
-
-MIT License - 详见 [LICENSE](LICENSE) 文件
 
 ## 🤝 贡献
 
