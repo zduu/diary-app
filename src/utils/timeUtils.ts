@@ -7,8 +7,28 @@ export interface TimeDisplay {
   tooltip: string;
 }
 
+/**
+ * 标准化时间字符串，确保正确处理数据库返回的时间格式
+ * SQLite 的 CURRENT_TIMESTAMP 返回 UTC 时间，格式为 'YYYY-MM-DD HH:MM:SS'
+ */
+function normalizeTimeString(dateString: string): string {
+  if (!dateString) return dateString;
+
+  // 如果是 SQLite 的 DATETIME 格式 (YYYY-MM-DD HH:MM:SS)，需要添加 'Z' 表示 UTC
+  if (!dateString.includes('T') && !dateString.includes('Z') && !dateString.includes('+')) {
+    return dateString.replace(' ', 'T') + 'Z';
+  }
+
+  // 如果是 ISO 格式但没有时区信息，添加 'Z' 表示 UTC
+  if (dateString.includes('T') && !dateString.includes('Z') && !dateString.includes('+')) {
+    return dateString + 'Z';
+  }
+
+  return dateString;
+}
+
 export function getSmartTimeDisplay(dateString: string): TimeDisplay {
-  const date = new Date(dateString);
+  const date = new Date(normalizeTimeString(dateString));
   const now = new Date();
   
   // 相对时间显示
@@ -55,7 +75,7 @@ export function getSmartTimeDisplay(dateString: string): TimeDisplay {
 }
 
 export function formatTimelineDate(dateString: string): string {
-  const date = new Date(dateString);
+  const date = new Date(normalizeTimeString(dateString));
   
   if (isToday(date)) {
     return '今天';
@@ -74,8 +94,8 @@ export function formatTimelineDate(dateString: string): string {
 
 export function getTimelinePosition(dateString: string, entries: any[]): number {
   // 计算在时间线上的相对位置 (0-100%)
-  const date = new Date(dateString);
-  const dates = entries.map(entry => new Date(entry.created_at!));
+  const date = new Date(normalizeTimeString(dateString));
+  const dates = entries.map(entry => new Date(normalizeTimeString(entry.created_at!)));
   const minDate = new Date(Math.min(...dates.map(d => d.getTime())));
   const maxDate = new Date(Math.max(...dates.map(d => d.getTime())));
 
