@@ -3,6 +3,7 @@ import { Search, X, Filter } from 'lucide-react';
 import { useThemeContext } from './ThemeProvider';
 import { useAdminAuth } from './AdminPanel';
 import { DiaryEntry } from '../types';
+import { normalizeTimeString } from '../utils/timeUtils';
 
 interface SearchBarProps {
   entries: DiaryEntry[];
@@ -61,7 +62,7 @@ export function SearchBar({ entries, onSearchResults, onClearSearch }: SearchBar
 
       // 日期范围过滤
       if (filters.dateRange) {
-        const entryDate = new Date(entry.created_at!);
+        const entryDate = new Date(normalizeTimeString(entry.created_at!));
         const now = new Date();
         
         switch (filters.dateRange) {

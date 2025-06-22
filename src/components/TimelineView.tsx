@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Clock, Edit, Sun, Cloud, CloudRain, Snowflake } from 'lucide-react';
 import { DiaryEntry, MoodType, WeatherType } from '../types';
 import { MarkdownRenderer } from './MarkdownRenderer';
-import { getSmartTimeDisplay } from '../utils/timeUtils';
+import { getSmartTimeDisplay, formatLocalDate } from '../utils/timeUtils';
 import { useThemeContext } from './ThemeProvider';
 import { useAdminAuth } from './AdminPanel';
 
@@ -258,11 +258,7 @@ export function TimelineView({ entries, onEdit }: TimelineViewProps) {
                           : theme.colors.textSecondary
                       }}
                     >
-                      {new Date(entry.created_at!).toLocaleDateString('zh-CN', {
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit'
-                      })}
+                      {formatLocalDate(entry.created_at!)}
                     </span>
                   </div>
                 </div>

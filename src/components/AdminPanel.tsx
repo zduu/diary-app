@@ -16,6 +16,7 @@ import {
 import { useThemeContext } from './ThemeProvider';
 import { DiaryEntry } from '../types';
 import { apiService } from '../services/api';
+import { getSmartTimeDisplay } from '../utils/timeUtils';
 
 // 管理员认证上下文
 interface AdminAuthContextType {
@@ -725,7 +726,7 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
                           {entry.content.length > 50 && '...'}
                         </div>
                         <div className="text-xs mt-1" style={{ color: theme.colors.textSecondary }}>
-                          {new Date(entry.created_at!).toLocaleString()}
+                          {getSmartTimeDisplay(entry.created_at!).tooltip}
                         </div>
                       </div>
 

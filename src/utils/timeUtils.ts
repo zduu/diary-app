@@ -11,7 +11,7 @@ export interface TimeDisplay {
  * 标准化时间字符串，确保正确处理数据库返回的时间格式
  * SQLite 的 CURRENT_TIMESTAMP 返回 UTC 时间，格式为 'YYYY-MM-DD HH:MM:SS'
  */
-function normalizeTimeString(dateString: string): string {
+export function normalizeTimeString(dateString: string): string {
   if (!dateString) return dateString;
 
   // 如果是 SQLite 的 DATETIME 格式 (YYYY-MM-DD HH:MM:SS)，需要添加 'Z' 表示 UTC
@@ -107,6 +107,18 @@ export function getTimelinePosition(dateString: string, entries: any[]): number 
   const currentPosition = date.getTime() - minDate.getTime();
 
   return (currentPosition / totalRange) * 100;
+}
+
+/**
+ * 格式化日期为本地化的日期字符串
+ */
+export function formatLocalDate(dateString: string): string {
+  const date = new Date(normalizeTimeString(dateString));
+  return date.toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  });
 }
 
 

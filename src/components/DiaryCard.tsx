@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Calendar, Cloud, Sun, CloudRain, Snowflake, Edit, Image as ImageIcon, MoreHorizontal, ChevronDown, ChevronUp } from 'lucide-react';
 import { DiaryEntry, MoodType, WeatherType } from '../types';
 import { MarkdownRenderer } from './MarkdownRenderer';
-import { getSmartTimeDisplay } from '../utils/timeUtils';
+import { getSmartTimeDisplay, formatLocalDate } from '../utils/timeUtils';
 import { useThemeContext } from './ThemeProvider';
 import { useAdminAuth } from './AdminPanel';
 
@@ -304,11 +304,7 @@ export function DiaryCard({ entry, onEdit }: DiaryCardProps) {
                     ? 'rgba(255, 255, 255, 0.9)'
                     : theme.colors.textSecondary
                 }}>
-                  {new Date(entry.created_at!).toLocaleDateString('zh-CN', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit'
-                  })}
+                  {formatLocalDate(entry.created_at!)}
                 </span>
               </div>
             </>
@@ -350,11 +346,7 @@ export function DiaryCard({ entry, onEdit }: DiaryCardProps) {
                 {weatherIcons[weather]}
                 <span>天气</span>
                 <span className="ml-2">
-                  {new Date(entry.created_at!).toLocaleDateString('zh-CN', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit'
-                  })}
+                  {formatLocalDate(entry.created_at!)}
                 </span>
               </div>
             </>

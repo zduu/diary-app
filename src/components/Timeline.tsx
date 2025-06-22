@@ -4,7 +4,7 @@ import { Clock, Calendar } from 'lucide-react';
 import { DiaryEntry } from '../types';
 import { DiaryCard } from './DiaryCard';
 import { TimelineView } from './TimelineView';
-import { getSmartTimeDisplay, formatTimelineDate } from '../utils/timeUtils';
+import { getSmartTimeDisplay, formatTimelineDate, normalizeTimeString } from '../utils/timeUtils';
 import { useThemeContext } from './ThemeProvider';
 import { ViewMode } from './ViewModeToggle';
 
@@ -198,7 +198,7 @@ function groupEntriesByDate(entries: DiaryEntry[]): Record<string, DiaryEntry[]>
   // Sort entries within each group by creation time (newest first)
   Object.keys(groups).forEach(key => {
     groups[key].sort((a, b) =>
-      new Date(b.created_at!).getTime() - new Date(a.created_at!).getTime()
+      new Date(normalizeTimeString(b.created_at!)).getTime() - new Date(normalizeTimeString(a.created_at!)).getTime()
     );
   });
 
