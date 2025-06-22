@@ -4,6 +4,7 @@ import { DiaryEntry, MoodType, WeatherType } from '../types';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { getSmartTimeDisplay } from '../utils/timeUtils';
 import { useThemeContext } from './ThemeProvider';
+import { useAdminAuth } from './AdminPanel';
 
 interface TimelineViewProps {
   entries: DiaryEntry[];
@@ -35,6 +36,7 @@ const weatherIcons: Record<WeatherType, JSX.Element> = {
 
 export function TimelineView({ entries, onEdit }: TimelineViewProps) {
   const { theme } = useThemeContext();
+  const { isAdminAuthenticated } = useAdminAuth();
   const [isMobile, setIsMobile] = useState(false);
 
   // 检测是否为移动设备
@@ -132,7 +134,7 @@ export function TimelineView({ entries, onEdit }: TimelineViewProps) {
                   </div>
                   
                   {/* 编辑按钮 */}
-                  {onEdit && (
+                  {onEdit && isAdminAuthenticated && (
                     <button
                       onClick={() => onEdit(entry)}
                       className="p-1.5 rounded-full transition-all duration-200 hover:scale-110 opacity-60 hover:opacity-100"

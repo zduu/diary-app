@@ -4,6 +4,7 @@ import { DiaryEntry, MoodType, WeatherType } from '../types';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { getSmartTimeDisplay } from '../utils/timeUtils';
 import { useThemeContext } from './ThemeProvider';
+import { useAdminAuth } from './AdminPanel';
 
 interface DiaryCardProps {
   entry: DiaryEntry;
@@ -34,6 +35,7 @@ const weatherIcons: Record<WeatherType, React.ReactNode> = {
 
 export function DiaryCard({ entry, onEdit }: DiaryCardProps) {
   const { theme } = useThemeContext();
+  const { isAdminAuthenticated } = useAdminAuth();
   const [showDetails, setShowDetails] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -112,7 +114,7 @@ export function DiaryCard({ entry, onEdit }: DiaryCardProps) {
               <MoreHorizontal className="w-4 h-4" />
             </button>
           ) : (
-            onEdit && (
+            onEdit && isAdminAuthenticated && (
               <button
                 onClick={() => onEdit(entry)}
                 className="p-2 rounded-full transition-all duration-200 hover:scale-110"
@@ -137,7 +139,7 @@ export function DiaryCard({ entry, onEdit }: DiaryCardProps) {
               操作
             </span>
             <div className="flex gap-2">
-              {onEdit && (
+              {onEdit && isAdminAuthenticated && (
                 <button
                   onClick={() => {
                     onEdit(entry);
