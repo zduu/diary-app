@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Plus, BookOpen, RefreshCw, Settings } from 'lucide-react';
 import { Timeline } from './components/Timeline';
 import { DiaryForm } from './components/DiaryForm';
-import { AdminPanel, AdminAuthProvider } from './components/AdminPanel';
+import { AdminPanel, AdminAuthProvider, useAdminAuth } from './components/AdminPanel';
 import { PasswordProtection } from './components/PasswordProtection';
 import { SearchBar } from './components/SearchBar';
 import { ThemeProvider, useThemeContext } from './components/ThemeProvider';
@@ -14,6 +14,7 @@ import { DiaryEntry } from './types';
 
 function AppContent() {
   const { theme } = useThemeContext();
+  const { isAdminAuthenticated } = useAdminAuth();
   const { entries, loading, error, createEntry, updateEntry, refreshEntries } = useDiary();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<DiaryEntry | undefined>();
@@ -173,25 +174,27 @@ function AppContent() {
                 <RefreshCw className={`w-4 h-4 md:w-5 md:h-5 ${loading ? 'animate-spin' : ''}`} />
               </button>
 
-              <button
-                onClick={handleNewEntry}
-                className="flex items-center gap-1 md:gap-2 px-3 py-2 md:px-6 md:py-3 rounded-lg md:rounded-xl font-bold transition-all duration-200 hover:scale-105 shadow-lg"
-                style={{
-                  background: theme.mode === 'glass'
-                    ? 'linear-gradient(135deg, rgba(168, 85, 247, 0.9) 0%, rgba(139, 92, 246, 0.9) 100%)'
-                    : theme.colors.primary,
-                  color: 'white',
-                  border: theme.mode === 'glass' ? '1px solid rgba(255, 255, 255, 0.3)' : 'none',
-                  backdropFilter: theme.mode === 'glass' ? 'blur(10px)' : 'none',
-                  boxShadow: theme.mode === 'glass'
-                    ? '0 8px 32px rgba(168, 85, 247, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)'
-                    : undefined,
-                  textShadow: theme.mode === 'glass' ? '0 1px 2px rgba(0, 0, 0, 0.3)' : 'none'
-                }}
-              >
-                <Plus className="w-4 h-4 md:w-5 md:h-5" />
-                <span className="text-sm md:text-base">写日记</span>
-              </button>
+              {isAdminAuthenticated && (
+                <button
+                  onClick={handleNewEntry}
+                  className="flex items-center gap-1 md:gap-2 px-3 py-2 md:px-6 md:py-3 rounded-lg md:rounded-xl font-bold transition-all duration-200 hover:scale-105 shadow-lg"
+                  style={{
+                    background: theme.mode === 'glass'
+                      ? 'linear-gradient(135deg, rgba(168, 85, 247, 0.9) 0%, rgba(139, 92, 246, 0.9) 100%)'
+                      : theme.colors.primary,
+                    color: 'white',
+                    border: theme.mode === 'glass' ? '1px solid rgba(255, 255, 255, 0.3)' : 'none',
+                    backdropFilter: theme.mode === 'glass' ? 'blur(10px)' : 'none',
+                    boxShadow: theme.mode === 'glass'
+                      ? '0 8px 32px rgba(168, 85, 247, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)'
+                      : undefined,
+                    textShadow: theme.mode === 'glass' ? '0 1px 2px rgba(0, 0, 0, 0.3)' : 'none'
+                  }}
+                >
+                  <Plus className="w-4 h-4 md:w-5 md:h-5" />
+                  <span className="text-sm md:text-base">写日记</span>
+                </button>
+              )}
             </div>
           </div>
         </div>

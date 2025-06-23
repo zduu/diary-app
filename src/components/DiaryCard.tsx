@@ -5,6 +5,7 @@ import { MarkdownRenderer } from './MarkdownRenderer';
 import { getSmartTimeDisplay, formatLocalDate } from '../utils/timeUtils';
 import { useThemeContext } from './ThemeProvider';
 import { useAdminAuth } from './AdminPanel';
+import { ImageViewer } from './ImageViewer';
 
 interface DiaryCardProps {
   entry: DiaryEntry;
@@ -38,10 +39,17 @@ export function DiaryCard({ entry, onEdit }: DiaryCardProps) {
   const { isAdminAuthenticated } = useAdminAuth();
   const [showDetails, setShowDetails] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [imageViewerOpen, setImageViewerOpen] = useState(false);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
   const mood = (entry.mood as MoodType) || 'neutral';
   const weather = (entry.weather as WeatherType) || 'unknown';
   const timeDisplay = getSmartTimeDisplay(entry.created_at!);
+
+  const handleImageClick = (index: number) => {
+    setSelectedImageIndex(index);
+    setImageViewerOpen(true);
+  };
 
   // 检测是否为移动设备
   React.useEffect(() => {
@@ -221,7 +229,7 @@ export function DiaryCard({ entry, onEdit }: DiaryCardProps) {
         <div className="mb-4">
           <div className={`grid gap-3 ${isMobile ? 'grid-cols-2' : 'grid-cols-2 md:grid-cols-3'}`}>
             {entry.images.slice(0, isMobile && !showDetails ? 2 : undefined).map((imageUrl, index) => (
-              <div key={index} className="relative group">
+              <div key={index} className="relative group cursor-pointer" onClick={() => handleImageClick(index)}>
                 <img
                   src={imageUrl}
                   alt={`图片 ${index + 1}`}
@@ -353,6 +361,16 @@ export function DiaryCard({ entry, onEdit }: DiaryCardProps) {
           )}
         </div>
       </div>
+
+      {/* 图片查看器 */}
+      {entry.images && entry.images.length > 0 && (
+        <ImageViewer
+          images={entry.images}
+          initialIndex={selectedImageIndex}
+          isOpen={imageViewerOpen}
+          onClose={() => setImageViewerOpen(false)}
+        />
+      )}
     </div>
   );
 }

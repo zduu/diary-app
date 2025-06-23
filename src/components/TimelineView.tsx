@@ -5,6 +5,7 @@ import { MarkdownRenderer } from './MarkdownRenderer';
 import { getSmartTimeDisplay, formatLocalDate } from '../utils/timeUtils';
 import { useThemeContext } from './ThemeProvider';
 import { useAdminAuth } from './AdminPanel';
+import { ImageViewer } from './ImageViewer';
 
 interface TimelineViewProps {
   entries: DiaryEntry[];
@@ -38,17 +39,26 @@ export function TimelineView({ entries, onEdit }: TimelineViewProps) {
   const { theme } = useThemeContext();
   const { isAdminAuthenticated } = useAdminAuth();
   const [isMobile, setIsMobile] = useState(false);
+  const [imageViewerOpen, setImageViewerOpen] = useState(false);
+  const [selectedImages, setSelectedImages] = useState<string[]>([]);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
   // 检测是否为移动设备
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
     };
-    
+
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  const handleImageClick = (images: string[], index: number) => {
+    setSelectedImages(images);
+    setSelectedImageIndex(index);
+    setImageViewerOpen(true);
+  };
 
   // 过滤掉隐藏的日记
   const visibleEntries = entries.filter(entry => !entry.hidden);
@@ -189,13 +199,23 @@ export function TimelineView({ entries, onEdit }: TimelineViewProps) {
                   <div className="mb-4">
                     <div className={`grid gap-3 ${isMobile ? 'grid-cols-2' : 'grid-cols-3'}`}>
                       {entry.images.map((imageUrl, imgIndex) => (
-                        <img
+                        <div
                           key={imgIndex}
-                          src={imageUrl}
-                          alt={`图片 ${imgIndex + 1}`}
-                          className="w-full aspect-square object-cover rounded-lg"
-                          style={{ border: `1px solid ${theme.colors.border}` }}
-                        />
+                          className="relative group cursor-pointer"
+                          onClick={() => handleImageClick(entry.images!, imgIndex)}
+                        >
+                          <img
+                            src={imageUrl}
+                            alt={`图片 ${imgIndex + 1}`}
+                            className="w-full aspect-square object-cover rounded-lg transition-transform duration-200 group-hover:scale-105"
+                            style={{ border: `1px solid ${theme.colors.border}` }}
+                          />
+                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 rounded-lg flex items-center justify-center">
+                            <span className="text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-sm">
+                              点击查看
+                            </span>
+                          </div>
+                        </div>
                       ))}
                     </div>
                   </div>
@@ -267,6 +287,14 @@ export function TimelineView({ entries, onEdit }: TimelineViewProps) {
           );
         })}
       </div>
+
+      {/* 图片查看器 */}
+      <ImageViewer
+        images={selectedImages}
+        initialIndex={selectedImageIndex}
+        isOpen={imageViewerOpen}
+        onClose={() => setImageViewerOpen(false)}
+      />
     </div>
   );
 }
