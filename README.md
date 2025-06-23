@@ -2,7 +2,8 @@
 
 基于 React + TypeScript + Cloudflare 构建的现代化日记应用。
 
-🌐 **在线演示**: [diary.edxx.de](https://diary.edxx.de)
+# [在线演示](https://diary.edxx.de)
+# [项目地址](https://github.com/zduu/diary-app)
 
 ![React](https://img.shields.io/badge/React-18-blue.svg)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue.svg)
@@ -129,9 +130,6 @@ A: 确保已部署到 Cloudflare，本地开发可能存在数据库连接问题
 
 **Q: 删除日记后刷新又出现了？**
 A: 这是 Cloudflare D1 分布式数据库的一致性问题，已在最新版本中修复
-
-**Q: 本地开发无法显示数据？**
-A: 本地环境使用远程 D1 数据库，可能存在连接问题，建议直接部署到生产环境测试
 
 **Q: 如何配置数据库？**
 A: 在 `wrangler.toml` 中配置数据库 ID，在 Cloudflare Pages 中绑定 D1 数据库
