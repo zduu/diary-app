@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>重构功能测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .test-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: #f9f9f9;
+        }
+        .status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .status.pass { background: #d4edda; color: #155724; }
+        .status.fail { background: #f8d7da; color: #721c24; }
+        .status.pending { background: #fff3cd; color: #856404; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .btn-hide { background: #6c757d; }
+        .btn-edit { background: #28a745; }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        input { padding: 8px; margin: 5px; border: 1px solid #ddd; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 重构功能测试</h1>
+        <p>测试完全重构后的编辑和隐藏功能，使用新的专用API端点。</p>
+        
+        <div class="test-section">
+            <h3>1. 创建测试日记</h3>
+            <span class="status pending" id="create-status">待测试</span>
+            <button onclick="createTestEntry()">创建测试日记</button>
+            <div id="create-result" class="result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>2. 测试新的隐藏功能API</h3>
+            <span class="status pending" id="hide-status">待测试</span>
+            <label>日记ID: <input type="number" id="hideEntryId" placeholder="输入日记ID"></label>
+            <button onclick="testToggleVisibility()" class="btn-hide">测试隐藏/显示</button>
+            <div id="hide-result" class="result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>3. 测试新的编辑功能API</h3>
+            <span class="status pending" id="edit-status">待测试</span>
+            <label>日记ID: <input type="number" id="editEntryId" placeholder="输入日记ID"></label>
+            <button onclick="testEditEntry()" class="btn-edit">测试编辑</button>
+            <div id="edit-result" class="result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>4. 压力测试</h3>
+            <span class="status pending" id="stress-status">待测试</span>
+            <label>日记ID: <input type="number" id="stressEntryId" placeholder="输入日记ID"></label>
+            <button onclick="stressTest()">连续操作测试</button>
+            <div id="stress-result" class="result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>5. 错误处理测试</h3>
+            <span class="status pending" id="error-status">待测试</span>
+            <button onclick="testErrorHandling()">测试错误处理</button>
+            <div id="error-result" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/api';
+        let testEntryId = null;
+        
+        function updateStatus(testName, status, message = '') {
+            const statusEl = document.getElementById(`${testName}-status`);
+            const resultEl = document.getElementById(`${testName}-result`);
+            
+            statusEl.className = `status ${status}`;
+            statusEl.textContent = status === 'pass' ? '通过' : status === 'fail' ? '失败' : '待测试';
+            
+            if (message) {
+                resultEl.className = `result ${status === 'pass' ? 'success' : status === 'fail' ? 'error' : 'info'}`;
+                resultEl.textContent = message;
+            }
+        }
+
+        async function createTestEntry() {
+            updateStatus('create', 'pending', '正在创建测试日记...');
+            
+            const testEntry = {
+                title: `重构测试日记 ${new Date().toLocaleString()}`,
+                content: '这是一个用于测试重构后功能的日记\n\n包含**Markdown**格式的内容。',
+                content_type: 'markdown',
+                mood: 'neutral',
+                weather: 'unknown',
+                tags: ['重构', '测试'],
+                images: [],
+                hidden: false
+            };
+            
+            try {
+                const response = await fetch(`${API_BASE}/entries`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(testEntry)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    testEntryId = result.data.id;
+                    document.getElementById('hideEntryId').value = testEntryId;
+                    document.getElementById('editEntryId').value = testEntryId;
+                    document.getElementById('stressEntryId').value = testEntryId;
+                    
+                    updateStatus('create', 'pass', 
+                        `✅ 测试日记创建成功\n` +
+                        `日记ID: ${testEntryId}\n` +
+                        `标题: ${result.data.title}\n` +
+                        `已自动填入所有测试ID字段`
+                    );
+                } else {
+                    updateStatus('create', 'fail', 
+                        `❌ 创建失败\n` +
+                        `HTTP状态: ${response.status}\n` +
+                        `错误信息: ${result.error || '未知错误'}`
+                    );
+                }
+            } catch (error) {
+                updateStatus('create', 'fail', 
+                    `❌ 创建请求失败\n` +
+                    `错误信息: ${error.message}`
+                );
+            }
+        }
+
+        async function testToggleVisibility() {
+            const entryId = document.getElementById('hideEntryId').value || testEntryId;
+            if (!entryId) {
+                updateStatus('hide', 'fail', '❌ 请先输入或创建测试日记ID');
+                return;
+            }
+            
+            updateStatus('hide', 'pending', '正在测试新的隐藏功能API...');
+            
+            try {
+                // 1. 获取当前状态
+                const getResponse = await fetch(`${API_BASE}/entries/${entryId}`);
+                const getResult = await getResponse.json();
+                
+                if (!getResponse.ok || !getResult.success) {
+                    updateStatus('hide', 'fail', 
+                        `❌ 获取日记失败\n` +
+                        `HTTP状态: ${getResponse.status}\n` +
+                        `错误信息: ${getResult.error}`
+                    );
+                    return;
+                }
+                
+                const originalHidden = getResult.data.hidden;
+                
+                // 2. 使用新的隐藏API
+                const toggleResponse = await fetch(`${API_BASE}/entries/${entryId}/toggle-visibility`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                const toggleResult = await toggleResponse.json();
+                
+                if (toggleResponse.ok && toggleResult.success) {
+                    const newHidden = toggleResult.data.hidden;
+                    updateStatus('hide', 'pass', 
+                        `✅ 新隐藏API测试成功！\n` +
+                        `HTTP状态: ${toggleResponse.status}\n` +
+                        `原状态: ${originalHidden ? '隐藏' : '显示'}\n` +
+                        `新状态: ${newHidden ? '隐藏' : '显示'}\n` +
+                        `状态正确切换: ${originalHidden !== newHidden ? '是' : '否'}\n` +
+                        `🎉 重构成功！`
+                    );
+                } else {
+                    updateStatus('hide', 'fail', 
+                        `❌ 隐藏API测试失败\n` +
+                        `HTTP状态: ${toggleResponse.status}\n` +
+                        `错误信息: ${toggleResult.error || '未知错误'}`
+                    );
+                }
+            } catch (error) {
+                updateStatus('hide', 'fail', 
+                    `❌ 隐藏API测试失败\n` +
+                    `错误信息: ${error.message}`
+                );
+            }
+        }
+
+        async function testEditEntry() {
+            const entryId = document.getElementById('editEntryId').value || testEntryId;
+            if (!entryId) {
+                updateStatus('edit', 'fail', '❌ 请先输入或创建测试日记ID');
+                return;
+            }
+            
+            updateStatus('edit', 'pending', '正在测试新的编辑功能API...');
+            
+            const editData = {
+                title: `重构编辑测试 [${new Date().toLocaleTimeString()}]`,
+                content: `这是编辑后的内容\n\n编辑时间: ${new Date().toLocaleString()}\n\n使用新的编辑API端点。`,
+                mood: 'happy',
+                tags: ['重构', '编辑', '成功']
+            };
+            
+            try {
+                const response = await fetch(`${API_BASE}/entries/${entryId}/edit`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(editData)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    updateStatus('edit', 'pass', 
+                        `✅ 新编辑API测试成功！\n` +
+                        `HTTP状态: ${response.status}\n` +
+                        `新标题: ${result.data.title}\n` +
+                        `新心情: ${result.data.mood}\n` +
+                        `新标签: ${result.data.tags.join(', ')}\n` +
+                        `更新时间: ${result.data.updated_at}\n` +
+                        `🎉 重构成功！`
+                    );
+                } else {
+                    updateStatus('edit', 'fail', 
+                        `❌ 编辑API测试失败\n` +
+                        `HTTP状态: ${response.status}\n` +
+                        `错误信息: ${result.error || '未知错误'}`
+                    );
+                }
+            } catch (error) {
+                updateStatus('edit', 'fail', 
+                    `❌ 编辑API测试失败\n` +
+                    `错误信息: ${error.message}`
+                );
+            }
+        }
+
+        async function stressTest() {
+            const entryId = document.getElementById('stressEntryId').value || testEntryId;
+            if (!entryId) {
+                updateStatus('stress', 'fail', '❌ 请先输入或创建测试日记ID');
+                return;
+            }
+            
+            updateStatus('stress', 'pending', '正在进行压力测试...');
+            
+            try {
+                let results = [];
+                const operations = [
+                    { name: '隐藏', api: 'toggle-visibility' },
+                    { name: '显示', api: 'toggle-visibility' },
+                    { name: '编辑1', api: 'edit', data: { title: '压力测试1' } },
+                    { name: '编辑2', api: 'edit', data: { content: '压力测试内容2' } },
+                    { name: '隐藏', api: 'toggle-visibility' },
+                    { name: '编辑3', api: 'edit', data: { mood: 'excited' } },
+                    { name: '显示', api: 'toggle-visibility' }
+                ];
+                
+                for (let i = 0; i < operations.length; i++) {
+                    const op = operations[i];
+                    const startTime = Date.now();
+                    
+                    try {
+                        const url = `${API_BASE}/entries/${entryId}/${op.api}`;
+                        const response = await fetch(url, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: op.data ? JSON.stringify(op.data) : undefined
+                        });
+                        
+                        const result = await response.json();
+                        const duration = Date.now() - startTime;
+                        
+                        results.push({
+                            operation: op.name,
+                            success: response.ok && result.success,
+                            duration,
+                            status: response.status
+                        });
+                        
+                        // 短暂延迟避免过快请求
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                        
+                    } catch (error) {
+                        results.push({
+                            operation: op.name,
+                            success: false,
+                            duration: Date.now() - startTime,
+                            error: error.message
+                        });
+                    }
+                }
+                
+                const successCount = results.filter(r => r.success).length;
+                const avgDuration = results.reduce((sum, r) => sum + r.duration, 0) / results.length;
+                
+                let report = `压力测试结果:\n`;
+                report += `总操作数: ${results.length}\n`;
+                report += `成功数: ${successCount}\n`;
+                report += `失败数: ${results.length - successCount}\n`;
+                report += `平均响应时间: ${avgDuration.toFixed(0)}ms\n\n`;
+                report += `详细结果:\n`;
+                
+                results.forEach((r, i) => {
+                    report += `${i + 1}. ${r.operation}: ${r.success ? '✅' : '❌'} (${r.duration}ms)\n`;
+                    if (r.error) report += `   错误: ${r.error}\n`;
+                });
+                
+                updateStatus('stress', successCount === results.length ? 'pass' : 'fail', report);
+                
+            } catch (error) {
+                updateStatus('stress', 'fail', 
+                    `❌ 压力测试失败\n` +
+                    `错误信息: ${error.message}`
+                );
+            }
+        }
+
+        async function testErrorHandling() {
+            updateStatus('error', 'pending', '正在测试错误处理...');
+            
+            try {
+                const tests = [
+                    { name: '无效ID - 隐藏', url: `${API_BASE}/entries/abc/toggle-visibility` },
+                    { name: '不存在ID - 隐藏', url: `${API_BASE}/entries/99999/toggle-visibility` },
+                    { name: '无效ID - 编辑', url: `${API_BASE}/entries/abc/edit` },
+                    { name: '不存在ID - 编辑', url: `${API_BASE}/entries/99999/edit` }
+                ];
+                
+                let errorReport = '错误处理测试结果:\n\n';
+                
+                for (const test of tests) {
+                    try {
+                        const response = await fetch(test.url, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ title: '测试' })
+                        });
+                        
+                        const result = await response.json();
+                        
+                        errorReport += `${test.name}:\n`;
+                        errorReport += `  HTTP状态: ${response.status}\n`;
+                        errorReport += `  成功: ${result.success ? '是' : '否'}\n`;
+                        errorReport += `  错误信息: ${result.error || '无'}\n`;
+                        errorReport += `  正确处理: ${!result.success && response.status >= 400 ? '是' : '否'}\n\n`;
+                        
+                    } catch (error) {
+                        errorReport += `${test.name}:\n`;
+                        errorReport += `  请求失败: ${error.message}\n\n`;
+                    }
+                }
+                
+                updateStatus('error', 'pass', errorReport);
+                
+            } catch (error) {
+                updateStatus('error', 'fail', 
+                    `❌ 错误处理测试失败\n` +
+                    `错误信息: ${error.message}`
+                );
+            }
+        }
+
+        // 页面加载时自动创建测试日记
+        window.onload = function() {
+            setTimeout(createTestEntry, 1000);
+        };
+    </script>
+</body>
+</html>

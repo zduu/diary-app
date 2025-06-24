@@ -223,62 +223,102 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
     reader.readAsText(file);
   };
 
-  // 切换日记隐藏状态
-  const toggleEntryVisibility = async (entryId: number) => {
-    try {
-      const entry = entries.find(e => e.id === entryId);
-      if (!entry) return;
+  // 操作状态管理
+  const [operationStates, setOperationStates] = useState<Record<number, 'idle' | 'hiding' | 'showing' | 'deleting'>>({});
 
-      await apiService.updateEntry(entryId, { hidden: !entry.hidden });
-      onEntriesUpdate(); // 刷新数据
+  // 通知状态管理
+  const [notification, setNotification] = useState<{
+    message: string;
+    type: 'success' | 'error';
+    visible: boolean;
+  }>({ message: '', type: 'success', visible: false });
+
+  // 更新操作状态
+  const setOperationState = (entryId: number, state: 'idle' | 'hiding' | 'showing' | 'deleting') => {
+    setOperationStates(prev => ({ ...prev, [entryId]: state }));
+  };
+
+  // 获取操作状态
+  const getOperationState = (entryId: number) => operationStates[entryId] || 'idle';
+
+  // 显示操作反馈
+  const showOperationFeedback = (message: string, isError = false) => {
+    setNotification({
+      message,
+      type: isError ? 'error' : 'success',
+      visible: true
+    });
+
+    // 3秒后自动隐藏
+    setTimeout(() => {
+      setNotification(prev => ({ ...prev, visible: false }));
+    }, 1000);
+  };
+
+  // 切换日记隐藏状态 - 使用新的专用API
+  const toggleEntryVisibility = async (entryId: number) => {
+    const entry = entries.find(e => e.id === entryId);
+    if (!entry) {
+      showOperationFeedback('日记信息异常，请刷新页面', true);
+      return;
+    }
+
+    const isCurrentlyHidden = entry.hidden;
+    const operation = isCurrentlyHidden ? 'showing' : 'hiding';
+
+    setOperationState(entryId, operation);
+
+    try {
+      console.log(`切换隐藏状态: ID ${entryId}, 当前状态: ${isCurrentlyHidden ? '隐藏' : '显示'}`);
+
+      // 使用专用的隐藏切换API
+      await apiService.toggleEntryVisibility(entryId);
+
+      // 刷新数据
+      onEntriesUpdate();
+
+      showOperationFeedback(
+        isCurrentlyHidden ? '日记已显示' : '日记已隐藏'
+      );
     } catch (error) {
-      alert('更新失败：' + (error instanceof Error ? error.message : '未知错误'));
+      const errorMessage = error instanceof Error ? error.message : '未知错误';
+      console.error('切换隐藏状态失败:', error);
+      showOperationFeedback(`操作失败：${errorMessage}`, true);
+    } finally {
+      setOperationState(entryId, 'idle');
     }
   };
 
   // 删除日记
   const handleDeleteEntry = async (entryId: number) => {
     const entry = entries.find(e => e.id === entryId);
-    if (!entry) return;
+    if (!entry) {
+      // 这种情况理论上不应该发生，因为按钮是从现有日记列表渲染的
+      showOperationFeedback('日记信息异常，请刷新页面', true);
+      return;
+    }
 
-    const confirmMessage = `确定要删除日记"${entry.title || '无标题'}"吗？此操作不可恢复！`;
+    const confirmMessage = `确定要删除日记"${entry.title || '无标题'}"吗？\n\n此操作不可恢复！`;
     if (!confirm(confirmMessage)) return;
 
-    try {
-      // 显示删除中状态
-      const deleteButton = document.querySelector(`[data-entry-id="${entryId}"]`) as HTMLButtonElement;
-      if (deleteButton) {
-        deleteButton.textContent = '删除中...';
-        deleteButton.disabled = true;
-      }
+    setOperationState(entryId, 'deleting');
 
+    try {
+      // 直接删除，不做额外检查
       await apiService.deleteEntry(entryId);
 
-      // 等待一段时间确保数据同步
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // 等待数据同步
+      await new Promise(resolve => setTimeout(resolve, 300));
 
       // 刷新数据
       onEntriesUpdate();
 
-      // 验证删除是否成功
-      setTimeout(() => {
-        const stillExists = entries.find(e => e.id === entryId);
-        if (stillExists) {
-          alert('删除操作正在同步中，请稍后刷新页面查看结果');
-        } else {
-          alert('删除成功！');
-        }
-      }, 1000);
-
+      showOperationFeedback('日记删除成功');
     } catch (error) {
-      alert('删除失败：' + (error instanceof Error ? error.message : '未知错误'));
-
-      // 恢复按钮状态
-      const deleteButton = document.querySelector(`[data-entry-id="${entryId}"]`) as HTMLButtonElement;
-      if (deleteButton) {
-        deleteButton.textContent = '删除';
-        deleteButton.disabled = false;
-      }
+      const errorMessage = error instanceof Error ? error.message : '未知错误';
+      showOperationFeedback(`删除失败：${errorMessage}`, true);
+    } finally {
+      setOperationState(entryId, 'idle');
     }
   };
 
@@ -730,53 +770,17 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 ml-3">
-                        {/* 编辑按钮 */}
-                        {onEdit && (
-                          <button
-                            onClick={() => {
-                              onEdit(entry);
-                              onClose(); // 关闭管理员面板
-                            }}
-                            className="p-2 rounded hover:bg-opacity-80 transition-colors"
-                            style={{
-                              backgroundColor: `${theme.colors.primary}20`,
-                              color: theme.colors.primary
-                            }}
-                            title="编辑"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                        )}
-
-                        {/* 隐藏/显示按钮 */}
-                        <button
-                          onClick={() => toggleEntryVisibility(entry.id!)}
-                          className="p-2 rounded hover:bg-opacity-80 transition-colors"
-                          style={{ backgroundColor: theme.colors.border }}
-                          title={entry.hidden ? "显示" : "隐藏"}
-                        >
-                          {entry.hidden ? (
-                            <Eye className="w-4 h-4" style={{ color: theme.colors.text }} />
-                          ) : (
-                            <EyeOff className="w-4 h-4" style={{ color: theme.colors.text }} />
-                          )}
-                        </button>
-
-                        {/* 删除按钮 */}
-                        <button
-                          onClick={() => handleDeleteEntry(entry.id!)}
-                          data-entry-id={entry.id}
-                          className="p-2 rounded hover:bg-opacity-80 transition-colors"
-                          style={{
-                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                            color: '#ef4444'
-                          }}
-                          title="删除"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
+                      <EntryActionButtons
+                        entry={entry}
+                        operationState={getOperationState(entry.id!)}
+                        onEdit={onEdit ? () => {
+                          onEdit(entry);
+                          onClose();
+                        } : undefined}
+                        onToggleVisibility={() => toggleEntryVisibility(entry.id!)}
+                        onDelete={() => handleDeleteEntry(entry.id!)}
+                        theme={theme}
+                      />
                     </div>
                   ))}
 
@@ -791,6 +795,179 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
           )}
         </div>
       </div>
+
+      {/* 通知组件 */}
+      {notification.visible && (
+        <NotificationToast
+          message={notification.message}
+          type={notification.type}
+          onClose={() => setNotification(prev => ({ ...prev, visible: false }))}
+        />
+      )}
     </div>
+  );
+}
+
+// 通知组件
+interface NotificationToastProps {
+  message: string;
+  type: 'success' | 'error';
+  onClose: () => void;
+}
+
+function NotificationToast({ message, type, onClose }: NotificationToastProps) {
+  useEffect(() => {
+    const timer = setTimeout(onClose, 3000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  return (
+    <div className="fixed top-4 right-4 z-50 max-w-sm">
+      <div
+        className={`p-4 rounded-lg shadow-lg border-l-4 ${
+          type === 'success'
+            ? 'bg-green-50 border-green-400 text-green-800'
+            : 'bg-red-50 border-red-400 text-red-800'
+        }`}
+      >
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-medium">{message}</p>
+          <button
+            onClick={onClose}
+            className="ml-3 text-gray-400 hover:text-gray-600"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 日记操作按钮组件
+interface EntryActionButtonsProps {
+  entry: DiaryEntry;
+  operationState: 'idle' | 'hiding' | 'showing' | 'deleting';
+  onEdit?: () => void;
+  onToggleVisibility: () => void;
+  onDelete: () => void;
+  theme: any;
+}
+
+function EntryActionButtons({
+  entry,
+  operationState,
+  onEdit,
+  onToggleVisibility,
+  onDelete,
+  theme
+}: EntryActionButtonsProps) {
+  const isOperating = operationState !== 'idle';
+
+  return (
+    <div className="flex items-center gap-2 ml-3">
+      {/* 编辑按钮 */}
+      {onEdit && (
+        <ActionButton
+          onClick={onEdit}
+          disabled={isOperating}
+          icon={<Edit className="w-4 h-4" />}
+          title="编辑日记"
+          variant="primary"
+          theme={theme}
+        />
+      )}
+
+      {/* 隐藏/显示按钮 */}
+      <ActionButton
+        onClick={onToggleVisibility}
+        disabled={isOperating}
+        loading={operationState === 'hiding' || operationState === 'showing'}
+        icon={entry.hidden ?
+          <Eye className="w-4 h-4" /> :
+          <EyeOff className="w-4 h-4" />
+        }
+        title={entry.hidden ? "显示日记" : "隐藏日记"}
+        variant="secondary"
+        theme={theme}
+      />
+
+      {/* 删除按钮 */}
+      <ActionButton
+        onClick={onDelete}
+        disabled={isOperating}
+        loading={operationState === 'deleting'}
+        icon={<Trash2 className="w-4 h-4" />}
+        title="删除日记"
+        variant="danger"
+        theme={theme}
+      />
+    </div>
+  );
+}
+
+// 通用操作按钮组件
+interface ActionButtonProps {
+  onClick: () => void;
+  disabled?: boolean;
+  loading?: boolean;
+  icon: React.ReactNode;
+  title: string;
+  variant: 'primary' | 'secondary' | 'danger';
+  theme: any;
+}
+
+function ActionButton({
+  onClick,
+  disabled = false,
+  loading = false,
+  icon,
+  title,
+  variant,
+  theme
+}: ActionButtonProps) {
+  const getButtonStyles = () => {
+    const baseStyles = {
+      opacity: disabled ? 0.5 : 1,
+      cursor: disabled ? 'not-allowed' : 'pointer',
+    };
+
+    switch (variant) {
+      case 'primary':
+        return {
+          ...baseStyles,
+          backgroundColor: `${theme.colors.primary}20`,
+          color: theme.colors.primary,
+        };
+      case 'danger':
+        return {
+          ...baseStyles,
+          backgroundColor: 'rgba(239, 68, 68, 0.1)',
+          color: '#ef4444',
+        };
+      case 'secondary':
+      default:
+        return {
+          ...baseStyles,
+          backgroundColor: theme.colors.border,
+          color: theme.colors.text,
+        };
+    }
+  };
+
+  return (
+    <button
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
+      className="p-2 rounded hover:bg-opacity-80 transition-colors relative"
+      style={getButtonStyles()}
+      title={disabled ? '操作进行中...' : title}
+    >
+      {loading ? (
+        <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+      ) : (
+        icon
+      )}
+    </button>
   );
 }

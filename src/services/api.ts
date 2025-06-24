@@ -238,6 +238,20 @@ class ApiService {
     console.log(`🎯 使用 ${this.useMockService ? 'Mock' : '远程'} API 服务`);
   }
 
+  // 重置API服务状态
+  resetApiService(): void {
+    this.useMockService = this.shouldUseMockService();
+    console.log(`🔄 API服务已重置，当前使用: ${this.useMockService ? 'Mock' : '远程'} 服务`);
+  }
+
+  // 获取当前API服务状态
+  getApiServiceStatus(): { useMockService: boolean; reason: string } {
+    return {
+      useMockService: this.useMockService,
+      reason: this.useMockService ? 'Mock服务' : '远程API服务'
+    };
+  }
+
   private shouldUseMockService(): boolean {
     // 检查是否在开发环境且没有后端服务
     const isDev = import.meta.env.DEV;
@@ -289,11 +303,26 @@ class ApiService {
 
     try {
       const response = await this.request<DiaryEntry[]>('/entries');
+
+      if (!response.success) {
+        console.error('获取日记列表失败:', response.error);
+        // 只有在明确的网络错误时才切换到Mock服务
+        throw new Error(response.error || '获取日记列表失败');
+      }
+
       return response.data || [];
     } catch (error) {
-      console.warn('远程API调用失败，切换到本地Mock服务:', error);
-      this.useMockService = true;
-      return this.mockService.getAllEntries();
+      console.error('获取日记列表失败:', error);
+
+      // 检查是否是网络连接问题
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        console.warn('网络连接失败，切换到本地Mock服务');
+        this.useMockService = true;
+        return this.mockService.getAllEntries();
+      }
+
+      // 其他错误直接抛出，不切换到Mock服务
+      throw error;
     }
   }
 
@@ -337,15 +366,21 @@ class ApiService {
     }
   }
 
-  // 更新日记
+  // 更新日记 - 使用新的专用端点
   async updateEntry(id: number, entry: Partial<DiaryEntry>): Promise<DiaryEntry> {
     if (this.useMockService) {
       return this.mockService.updateEntry(id, entry);
     }
 
     try {
-      const response = await this.request<DiaryEntry>(`/entries/${id}`, {
-        method: 'PUT',
+      // 如果只是切换隐藏状态，使用专用的隐藏端点
+      if (Object.keys(entry).length === 1 && 'hidden' in entry) {
+        return await this.toggleEntryVisibility(id);
+      }
+
+      // 否则使用编辑端点
+      const response = await this.request<DiaryEntry>(`/entries/${id}/edit`, {
+        method: 'POST',
         body: JSON.stringify(entry),
       });
 
@@ -355,9 +390,33 @@ class ApiService {
 
       return response.data;
     } catch (error) {
-      console.warn('远程API调用失败，切换到本地Mock服务:', error);
-      this.useMockService = true;
-      return this.mockService.updateEntry(id, entry);
+      console.error('更新日记失败:', error);
+      throw error;
+    }
+  }
+
+  // 切换日记隐藏状态 - 专用方法
+  async toggleEntryVisibility(id: number): Promise<DiaryEntry> {
+    if (this.useMockService) {
+      // 获取当前状态并切换
+      const current = await this.mockService.getEntry(id);
+      if (!current) throw new Error('日记不存在');
+      return this.mockService.updateEntry(id, { hidden: !current.hidden });
+    }
+
+    try {
+      const response = await this.request<DiaryEntry>(`/entries/${id}/toggle-visibility`, {
+        method: 'POST',
+      });
+
+      if (!response.success || !response.data) {
+        throw new Error(response.error || '切换隐藏状态失败');
+      }
+
+      return response.data;
+    } catch (error) {
+      console.error('切换隐藏状态失败:', error);
+      throw error;
     }
   }
 

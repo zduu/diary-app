@@ -20,41 +20,107 @@ class DiaryDatabase {
   }
 
   async updateEntry(id: number, updates: Partial<DiaryEntry>): Promise<DiaryEntry> {
-    // 首先检查条目是否存在
-    const existing = await this.db.prepare('SELECT * FROM diary_entries WHERE id = ?').bind(id).first();
-    if (!existing) {
-      throw new Error('日记不存在');
+    console.log(`[UPDATE] 开始更新日记 ID: ${id}, 更新字段:`, Object.keys(updates));
+
+    try {
+      // 1. 先检查日记是否存在
+      const existingEntry = await this.db.prepare('SELECT * FROM diary_entries WHERE id = ?').bind(id).first();
+      if (!existingEntry) {
+        console.log(`[UPDATE] 日记 ID ${id} 不存在`);
+        throw new Error('日记不存在');
+      }
+
+      console.log(`[UPDATE] 找到日记 ID ${id}, 标题: "${existingEntry.title}"`);
+
+      // 2. 构建更新语句 - 只更新提供的字段
+      const updateFields = [];
+      const updateValues = [];
+
+      if (updates.title !== undefined) {
+        updateFields.push('title = ?');
+        updateValues.push(updates.title);
+      }
+
+      if (updates.content !== undefined) {
+        updateFields.push('content = ?');
+        updateValues.push(updates.content);
+      }
+
+      if (updates.content_type !== undefined) {
+        updateFields.push('content_type = ?');
+        updateValues.push(updates.content_type);
+      }
+
+      if (updates.mood !== undefined) {
+        updateFields.push('mood = ?');
+        updateValues.push(updates.mood);
+      }
+
+      if (updates.weather !== undefined) {
+        updateFields.push('weather = ?');
+        updateValues.push(updates.weather);
+      }
+
+      if (updates.tags !== undefined) {
+        updateFields.push('tags = ?');
+        updateValues.push(JSON.stringify(updates.tags));
+      }
+
+      if (updates.images !== undefined) {
+        updateFields.push('images = ?');
+        updateValues.push(JSON.stringify(updates.images));
+      }
+
+      if (updates.hidden !== undefined) {
+        updateFields.push('hidden = ?');
+        updateValues.push(updates.hidden ? 1 : 0);
+      }
+
+      // 总是更新 updated_at
+      updateFields.push('updated_at = CURRENT_TIMESTAMP');
+
+      if (updateFields.length === 1) { // 只有 updated_at
+        console.log(`[UPDATE] 没有字段需要更新`);
+        return this.formatEntry(existingEntry);
+      }
+
+      // 3. 执行更新
+      const sql = `UPDATE diary_entries SET ${updateFields.join(', ')} WHERE id = ?`;
+      updateValues.push(id);
+
+      console.log(`[UPDATE] 执行SQL: ${sql}`);
+      console.log(`[UPDATE] 参数:`, updateValues);
+
+      const updateResult = await this.db.prepare(sql).bind(...updateValues).run();
+
+      console.log(`[UPDATE] 更新结果:`, {
+        success: updateResult.success,
+        changes: updateResult.meta?.changes,
+        lastRowId: updateResult.meta?.last_row_id
+      });
+
+      if (!updateResult.success) {
+        throw new Error('数据库更新操作失败');
+      }
+
+      if (updateResult.meta.changes === 0) {
+        throw new Error('没有记录被更新');
+      }
+
+      // 4. 获取更新后的数据
+      const updatedEntry = await this.db.prepare('SELECT * FROM diary_entries WHERE id = ?').bind(id).first();
+
+      if (!updatedEntry) {
+        throw new Error('更新后无法获取数据');
+      }
+
+      console.log(`[UPDATE] 更新成功: 日记 ID ${id}`);
+      return this.formatEntry(updatedEntry);
+
+    } catch (error) {
+      console.error(`[UPDATE] 更新失败: 日记 ID ${id}`, error);
+      throw error;
     }
-
-    const tagsJson = updates.tags ? JSON.stringify(updates.tags) : undefined;
-    const imagesJson = updates.images ? JSON.stringify(updates.images) : undefined;
-
-    const result = await this.db.prepare(`
-      UPDATE diary_entries
-      SET title = COALESCE(?, title),
-          content = COALESCE(?, content),
-          content_type = COALESCE(?, content_type),
-          mood = COALESCE(?, mood),
-          weather = COALESCE(?, weather),
-          images = COALESCE(?, images),
-          tags = COALESCE(?, tags),
-          hidden = COALESCE(?, hidden),
-          updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-      RETURNING *
-    `).bind(
-      updates.title,
-      updates.content,
-      updates.content_type,
-      updates.mood,
-      updates.weather,
-      imagesJson,
-      tagsJson,
-      updates.hidden !== undefined ? (updates.hidden ? 1 : 0) : undefined,
-      id
-    ).first();
-
-    return this.formatEntry(result);
   }
 
   async deleteEntry(id: number): Promise<void> {
@@ -67,7 +133,7 @@ class DiaryDatabase {
     // 执行删除
     const result = await this.db.prepare('DELETE FROM diary_entries WHERE id = ?').bind(id).run();
 
-    if (result.changes === 0) {
+    if (result.meta.changes === 0) {
       throw new Error('删除失败');
     }
 
@@ -186,51 +252,99 @@ export const onRequestGet = async (context: { params: { id: string }; env: Env }
 };
 
 export const onRequestPut = async (context: { params: { id: string }; request: Request; env: Env }): Promise<Response> => {
+  const startTime = Date.now();
+  let requestId = Math.random().toString(36).substring(2, 11);
+
   try {
+    console.log(`[${requestId}] PUT /entries/${context.params.id} - 开始处理`);
+
+    // 1. 验证ID
     const id = parseInt(context.params.id);
-    if (isNaN(id)) {
-      const response: ApiResponse = { 
-        success: false, 
-        error: '无效的ID' 
-      };
-      return new Response(JSON.stringify(response), {
-        headers: { 
-          'Content-Type': 'application/json',
-          ...corsHeaders
-        },
+    if (isNaN(id) || id <= 0) {
+      console.log(`[${requestId}] 无效的ID: ${context.params.id}`);
+      return new Response(JSON.stringify({
+        success: false,
+        error: '无效的日记ID'
+      }), {
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
         status: 400
       });
     }
 
-    const body = await context.request.json() as Partial<DiaryEntry>;
+    // 2. 解析请求体
+    let body;
+    try {
+      body = await context.request.json() as Partial<DiaryEntry>;
+      console.log(`[${requestId}] 请求体解析成功:`, Object.keys(body));
+    } catch (parseError) {
+      console.error(`[${requestId}] 请求体解析失败:`, parseError);
+      return new Response(JSON.stringify({
+        success: false,
+        error: '请求数据格式错误'
+      }), {
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        status: 400
+      });
+    }
+
+    // 3. 检查数据库连接
+    if (!context.env?.DB) {
+      console.error(`[${requestId}] 数据库连接不可用`);
+      return new Response(JSON.stringify({
+        success: false,
+        error: '数据库服务不可用'
+      }), {
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        status: 503
+      });
+    }
+
+    // 4. 执行更新
     const db = new DiaryDatabase(context.env.DB);
-    const entry = await db.updateEntry(id, body);
-    
-    const response: ApiResponse = { 
-      success: true, 
-      data: entry, 
-      message: '日记更新成功' 
-    };
-    
-    return new Response(JSON.stringify(response), {
-      headers: { 
-        'Content-Type': 'application/json',
-        ...corsHeaders
-      }
+    const updatedEntry = await db.updateEntry(id, body);
+
+    const duration = Date.now() - startTime;
+    console.log(`[${requestId}] 更新成功，耗时: ${duration}ms`);
+
+    return new Response(JSON.stringify({
+      success: true,
+      data: updatedEntry,
+      message: '日记更新成功'
+    }), {
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      status: 200
     });
+
   } catch (error) {
-    console.error('Update entry error:', error);
-    const response: ApiResponse = { 
-      success: false, 
-      error: error instanceof Error ? error.message : '更新日记失败' 
-    };
-    
-    return new Response(JSON.stringify(response), {
-      headers: { 
-        'Content-Type': 'application/json',
-        ...corsHeaders
-      },
-      status: 500
+    const duration = Date.now() - startTime;
+    console.error(`[${requestId}] 更新失败，耗时: ${duration}ms`, {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      type: error?.constructor?.name
+    });
+
+    // 根据错误类型返回不同的状态码
+    let statusCode = 500;
+    let errorMessage = '服务器内部错误';
+
+    if (error instanceof Error) {
+      if (error.message.includes('不存在')) {
+        statusCode = 404;
+        errorMessage = error.message;
+      } else if (error.message.includes('无效') || error.message.includes('格式')) {
+        statusCode = 400;
+        errorMessage = error.message;
+      } else {
+        errorMessage = error.message;
+      }
+    }
+
+    return new Response(JSON.stringify({
+      success: false,
+      error: errorMessage
+    }), {
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      status: statusCode
     });
   }
 };

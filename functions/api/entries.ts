@@ -59,41 +59,68 @@ class DiaryDatabase {
   }
 
   async updateEntry(id: number, updates: Partial<DiaryEntry>): Promise<DiaryEntry> {
-    // 首先检查条目是否存在
-    const existing = await this.db.prepare('SELECT * FROM diary_entries WHERE id = ?').bind(id).first();
-    if (!existing) {
-      throw new Error('日记不存在');
+    // 使用重试机制处理D1数据库一致性问题
+    let retryCount = 0;
+    const maxRetries = 3;
+
+    while (retryCount <= maxRetries) {
+      try {
+        // 首先检查条目是否存在
+        const existing = await this.db.prepare('SELECT * FROM diary_entries WHERE id = ?').bind(id).first();
+        if (!existing) {
+          if (retryCount < maxRetries) {
+            // 等待一段时间后重试，可能是数据库同步延迟
+            await new Promise(resolve => setTimeout(resolve, 100 * (retryCount + 1)));
+            retryCount++;
+            continue;
+          }
+          throw new Error('日记不存在');
+        }
+
+        const tagsJson = updates.tags ? JSON.stringify(updates.tags) : undefined;
+        const imagesJson = updates.images ? JSON.stringify(updates.images) : undefined;
+
+        const result = await this.db.prepare(`
+          UPDATE diary_entries
+          SET title = COALESCE(?, title),
+              content = COALESCE(?, content),
+              content_type = COALESCE(?, content_type),
+              mood = COALESCE(?, mood),
+              weather = COALESCE(?, weather),
+              images = COALESCE(?, images),
+              tags = COALESCE(?, tags),
+              hidden = COALESCE(?, hidden),
+              updated_at = CURRENT_TIMESTAMP
+          WHERE id = ?
+          RETURNING *
+        `).bind(
+          updates.title,
+          updates.content,
+          updates.content_type,
+          updates.mood,
+          updates.weather,
+          imagesJson,
+          tagsJson,
+          updates.hidden !== undefined ? (updates.hidden ? 1 : 0) : undefined,
+          id
+        ).first();
+
+        if (!result) {
+          throw new Error('更新失败：无法获取更新后的数据');
+        }
+
+        return this.formatEntry(result);
+      } catch (error) {
+        if (retryCount >= maxRetries) {
+          throw error;
+        }
+        retryCount++;
+        // 等待后重试
+        await new Promise(resolve => setTimeout(resolve, 100 * retryCount));
+      }
     }
 
-    const tagsJson = updates.tags ? JSON.stringify(updates.tags) : undefined;
-    const imagesJson = updates.images ? JSON.stringify(updates.images) : undefined;
-
-    const result = await this.db.prepare(`
-      UPDATE diary_entries
-      SET title = COALESCE(?, title),
-          content = COALESCE(?, content),
-          content_type = COALESCE(?, content_type),
-          mood = COALESCE(?, mood),
-          weather = COALESCE(?, weather),
-          images = COALESCE(?, images),
-          tags = COALESCE(?, tags),
-          hidden = COALESCE(?, hidden),
-          updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-      RETURNING *
-    `).bind(
-      updates.title,
-      updates.content,
-      updates.content_type,
-      updates.mood,
-      updates.weather,
-      imagesJson,
-      tagsJson,
-      updates.hidden !== undefined ? (updates.hidden ? 1 : 0) : undefined,
-      id
-    ).first();
-
-    return this.formatEntry(result);
+    throw new Error('更新失败：超过最大重试次数');
   }
 
   async deleteEntry(id: number): Promise<void> {
@@ -106,7 +133,7 @@ class DiaryDatabase {
     // 执行删除
     const result = await this.db.prepare('DELETE FROM diary_entries WHERE id = ?').bind(id).run();
 
-    if (result.changes === 0) {
+    if (result.meta.changes === 0) {
       throw new Error('删除失败');
     }
   }
