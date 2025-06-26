@@ -76,6 +76,11 @@ interface PasswordSettings {
   password: string;
 }
 
+interface BackgroundSettings {
+  enabled: boolean;
+  imageUrl: string;
+}
+
 export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }: AdminPanelProps) {
   const { theme } = useThemeContext();
   const { isAdminAuthenticated, setIsAdminAuthenticated } = useAdminAuth();
@@ -106,6 +111,10 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
       // 同时加载密码设置
       const passwordSettings = await getPasswordSettings();
       setCurrentPasswordSettings(passwordSettings);
+
+      // 加载背景设置
+      const backgroundSettings = await getBackgroundSettings();
+      setCurrentBackgroundSettings(backgroundSettings);
     } catch (error) {
       console.error('加载设置失败:', error);
     }
@@ -123,6 +132,14 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
   const [showAppPasswordSettings, setShowAppPasswordSettings] = useState(false);
   const [newAppPassword, setNewAppPassword] = useState('');
   const [currentPasswordSettings, setCurrentPasswordSettings] = useState<PasswordSettings>({ enabled: false, password: 'diary123' });
+
+  // 背景设置状态
+  const [currentBackgroundSettings, setCurrentBackgroundSettings] = useState<BackgroundSettings>({
+    enabled: false,
+    imageUrl: ''
+  });
+  const [showBackgroundSettings, setShowBackgroundSettings] = useState(false);
+  const [newBackgroundUrl, setNewBackgroundUrl] = useState('');
 
   // 保存设置到数据库
   const saveSettings = async (newSettings: AdminSettings) => {
@@ -384,6 +401,45 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
     }
   };
 
+  // 获取背景设置
+  const getBackgroundSettings = async (): Promise<BackgroundSettings> => {
+    try {
+      const allSettings = await apiService.getAllSettings();
+      return {
+        enabled: allSettings.login_background_enabled === 'true',
+        imageUrl: allSettings.login_background_url || ''
+      };
+    } catch (error) {
+      console.error('获取背景设置失败:', error);
+      return { enabled: false, imageUrl: '' };
+    }
+  };
+
+  // 保存背景设置
+  const saveBackgroundSettings = async (backgroundSettings: BackgroundSettings) => {
+    try {
+      await apiService.setSetting('login_background_enabled', backgroundSettings.enabled.toString());
+      await apiService.setSetting('login_background_url', backgroundSettings.imageUrl);
+
+      setCurrentBackgroundSettings(backgroundSettings);
+      console.log('背景设置已保存到数据库');
+    } catch (error) {
+      console.error('保存背景设置失败:', error);
+      throw error;
+    }
+  };
+
+  // 切换背景功能
+  const toggleBackground = async () => {
+    try {
+      const newSettings = { ...currentBackgroundSettings, enabled: !currentBackgroundSettings.enabled };
+      await saveBackgroundSettings(newSettings);
+      alert(`登录背景已${newSettings.enabled ? '开启' : '关闭'}！`);
+    } catch (error) {
+      alert('设置修改失败：' + (error instanceof Error ? error.message : '未知错误'));
+    }
+  };
+
   // 更改应用密码
   const handleAppPasswordChange = async () => {
     if (newAppPassword.length < 6) {
@@ -399,6 +455,19 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
       alert('应用密码修改成功！');
     } catch (error) {
       alert('应用密码修改失败：' + (error instanceof Error ? error.message : '未知错误'));
+    }
+  };
+
+  // 更改背景图片URL
+  const handleBackgroundUrlChange = async () => {
+    try {
+      const newSettings = { ...currentBackgroundSettings, imageUrl: newBackgroundUrl };
+      await saveBackgroundSettings(newSettings);
+      setNewBackgroundUrl('');
+      setShowBackgroundSettings(false);
+      alert('背景图片设置成功！');
+    } catch (error) {
+      alert('背景图片设置失败：' + (error instanceof Error ? error.message : '未知错误'));
     }
   };
 
@@ -601,7 +670,7 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
                   应用安全设置
                 </h3>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {/* 应用密码保护切换 */}
                   <button
                     onClick={toggleAppPasswordProtection}
@@ -645,7 +714,47 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
                       </div>
                     </div>
                   </button>
+
+                  {/* 登录背景设置 */}
+                  <button
+                    onClick={toggleBackground}
+                    className="flex items-center gap-3 p-4 rounded-lg border transition-colors hover:bg-opacity-80"
+                    style={{
+                      backgroundColor: theme.colors.surface,
+                      borderColor: theme.colors.border,
+                      color: theme.colors.text,
+                    }}
+                  >
+                    <Shield className="w-5 h-5" style={{ color: theme.colors.primary }} />
+                    <div className="text-left">
+                      <div className="font-medium">
+                        {currentBackgroundSettings.enabled ? '关闭' : '开启'}登录背景
+                      </div>
+                      <div className="text-sm" style={{ color: theme.colors.textSecondary }}>
+                        {currentBackgroundSettings.enabled ? '显示透明背景' : '启用背景遮盖'}
+                      </div>
+                    </div>
+                  </button>
                 </div>
+
+                {/* 背景图片设置按钮 */}
+                <button
+                  onClick={() => setShowBackgroundSettings(!showBackgroundSettings)}
+                  className="flex items-center gap-3 p-4 rounded-lg border transition-colors hover:bg-opacity-80 w-full"
+                  style={{
+                    backgroundColor: theme.colors.surface,
+                    borderColor: theme.colors.border,
+                    color: theme.colors.text,
+                  }}
+                >
+                  <Eye className="w-5 h-5" style={{ color: theme.colors.primary }} />
+                  <div className="text-left">
+                    <div className="font-medium">背景图片设置</div>
+                    <div className="text-sm" style={{ color: theme.colors.textSecondary }}>
+                      自定义登录页面背景图片
+                    </div>
+                  </div>
+                </button>
 
                 {/* 应用密码修改区域 */}
                 {showAppPasswordSettings && (
@@ -683,6 +792,50 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
                     <p className="text-xs mt-2" style={{ color: theme.colors.textSecondary }}>
                       当前密码：{currentPasswordSettings.password}
                     </p>
+                  </div>
+                )}
+
+                {/* 背景图片修改区域 */}
+                {showBackgroundSettings && (
+                  <div className="p-4 rounded-lg border" style={{
+                    backgroundColor: theme.colors.surface,
+                    borderColor: theme.colors.border,
+                  }}>
+                    <h4 className="font-medium mb-3" style={{ color: theme.colors.text }}>
+                      设置背景图片
+                    </h4>
+                    <div className="space-y-3">
+                      <div className="flex gap-3">
+                        <input
+                          type="url"
+                          value={newBackgroundUrl}
+                          onChange={(e) => setNewBackgroundUrl(e.target.value)}
+                          placeholder="输入图片链接（如：https://example.com/image.jpg）"
+                          className="flex-1 px-3 py-2 rounded border"
+                          style={{
+                            backgroundColor: theme.colors.surface,
+                            borderColor: theme.colors.border,
+                            color: theme.colors.text,
+                          }}
+                        />
+                        <button
+                          onClick={handleBackgroundUrlChange}
+                          className="px-4 py-2 rounded font-medium"
+                          style={{
+                            backgroundColor: theme.colors.primary,
+                            color: 'white',
+                          }}
+                        >
+                          确认设置
+                        </button>
+                      </div>
+                      <p className="text-xs" style={{ color: theme.colors.textSecondary }}>
+                        当前背景：{currentBackgroundSettings.imageUrl || '未设置'}
+                      </p>
+                      <p className="text-xs" style={{ color: theme.colors.textSecondary }}>
+                        提示：建议使用高质量图片，支持jpg、png、webp格式
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>

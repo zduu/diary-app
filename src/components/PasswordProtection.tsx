@@ -12,6 +12,11 @@ interface PasswordSettings {
   password: string;
 }
 
+interface BackgroundSettings {
+  enabled: boolean;
+  imageUrl: string;
+}
+
 export function PasswordProtection({ onAuthenticated }: PasswordProtectionProps) {
   const { theme } = useThemeContext();
   const [password, setPassword] = useState('');
@@ -23,18 +28,29 @@ export function PasswordProtection({ onAuthenticated }: PasswordProtectionProps)
     password: 'diary123'
   });
 
+  const [backgroundSettings, setBackgroundSettings] = useState<BackgroundSettings>({
+    enabled: false,
+    imageUrl: ''
+  });
+
   // 从后端加载密码设置
   const loadPasswordSettings = async () => {
     try {
       const settings = await apiService.getAllSettings();
-      const newSettings = {
+      const newPasswordSettings = {
         enabled: settings.app_password_enabled === 'true',
         password: settings.app_password || 'diary123'
       };
-      setPasswordSettings(newSettings);
+      setPasswordSettings(newPasswordSettings);
+
+      const newBackgroundSettings = {
+        enabled: settings.login_background_enabled === 'true',
+        imageUrl: settings.login_background_url || ''
+      };
+      setBackgroundSettings(newBackgroundSettings);
 
       // 如果没有启用密码保护，直接通过验证
-      if (!newSettings.enabled) {
+      if (!newPasswordSettings.enabled) {
         onAuthenticated();
       }
     } catch (error) {
@@ -83,9 +99,34 @@ export function PasswordProtection({ onAuthenticated }: PasswordProtectionProps)
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4" style={{ zIndex: 9999 }}>
+    <div 
+      className="fixed inset-0 flex items-center justify-center p-4" 
+      style={{ 
+        zIndex: 9999,
+        backgroundColor: backgroundSettings.enabled 
+          ? (backgroundSettings.imageUrl ? 'transparent' : '#000000')
+          : 'rgba(0, 0, 0, 0.75)',
+        backgroundImage: backgroundSettings.enabled && backgroundSettings.imageUrl 
+          ? `url(${backgroundSettings.imageUrl})`
+          : 'none',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat'
+      }}
+    >
+      {/* 图片背景的遮罩层 */}
+      {backgroundSettings.enabled && backgroundSettings.imageUrl && (
+        <div 
+          className="absolute inset-0" 
+          style={{ 
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            backdropFilter: 'blur(2px)'
+          }} 
+        />
+      )}
+      
       <div
-        className={`w-full max-w-md rounded-xl p-8 ${theme.effects.blur}`}
+        className={`w-full max-w-md rounded-xl p-8 ${theme.effects.blur} relative z-10`}
         style={{
           backgroundColor: theme.mode === 'glass' ? undefined : theme.colors.surface,
           border: theme.mode === 'glass' ? undefined : `1px solid ${theme.colors.border}`,

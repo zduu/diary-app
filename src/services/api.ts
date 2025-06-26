@@ -82,7 +82,9 @@ class MockApiService {
     return {
       admin_password: 'admin123',
       app_password_enabled: 'false',
-      app_password: 'diary123'
+      app_password: 'diary123',
+      login_background_enabled: 'false',
+      login_background_url: ''
     };
   }
 
