@@ -1,3 +1,29 @@
+export interface POI {
+  name: string;
+  type: string;
+  distance: number;
+}
+
+export interface LocationDetails {
+  building?: string;
+  house_number?: string;
+  road?: string;
+  neighbourhood?: string;
+  suburb?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+}
+
+export interface LocationInfo {
+  name?: string;
+  latitude?: number;
+  longitude?: number;
+  address?: string;
+  nearbyPOIs?: POI[];
+  details?: LocationDetails;
+}
+
 export interface DiaryEntry {
   id?: number;
   title: string;
@@ -6,6 +32,7 @@ export interface DiaryEntry {
   mood?: string;
   weather?: string;
   images?: string[];
+  location?: LocationInfo | null;
   created_at?: string;
   updated_at?: string;
   tags?: string[];

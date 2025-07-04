@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Calendar, Cloud, Sun, CloudRain, Snowflake, Edit, Image as ImageIcon, MoreHorizontal, ChevronDown, ChevronUp } from 'lucide-react';
-import { DiaryEntry, MoodType, WeatherType } from '../types';
+import { Calendar, Cloud, Sun, CloudRain, Snowflake, Edit, Image as ImageIcon, MoreHorizontal, ChevronDown, ChevronUp, MapPin } from 'lucide-react';
+import { DiaryEntry, MoodType, WeatherType, LocationInfo } from '../types';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { getSmartTimeDisplay, formatLocalDate } from '../utils/timeUtils';
 import { useThemeContext } from './ThemeProvider';
@@ -49,6 +49,21 @@ export function DiaryCard({ entry, onEdit }: DiaryCardProps) {
   const handleImageClick = (index: number) => {
     setSelectedImageIndex(index);
     setImageViewerOpen(true);
+  };
+
+  // 生成位置信息的工具提示
+  const getLocationTooltip = (location: LocationInfo) => {
+    const parts = [];
+
+    if (location.address) {
+      parts.push(`地址: ${location.address}`);
+    }
+
+    if (location.latitude && location.longitude) {
+      parts.push(`坐标: ${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}`);
+    }
+
+    return parts.join('\n') || location.name || '位置信息';
   };
 
   // 检测是否为移动设备
@@ -306,6 +321,22 @@ export function DiaryCard({ entry, onEdit }: DiaryCardProps) {
               <div className="flex items-center gap-1">
                 {weatherIcons[weather]}
               </div>
+              {entry.location && (
+                <div className="flex items-center gap-1">
+                  <MapPin className="w-3 h-3" style={{
+                    color: theme.mode === 'glass'
+                      ? 'rgba(255, 255, 255, 0.8)'
+                      : theme.colors.textSecondary
+                  }} />
+                  <span style={{
+                    color: theme.mode === 'glass'
+                      ? 'rgba(255, 255, 255, 0.9)'
+                      : theme.colors.textSecondary
+                  }} title={getLocationTooltip(entry.location)}>
+                    {entry.location.name || '位置'}
+                  </span>
+                </div>
+              )}
               <div className="flex items-center gap-1">
                 <span style={{
                   color: theme.mode === 'glass'
@@ -357,6 +388,24 @@ export function DiaryCard({ entry, onEdit }: DiaryCardProps) {
                   {formatLocalDate(entry.created_at!)}
                 </span>
               </div>
+
+              {entry.location && (
+                <div
+                  className="flex items-center gap-1"
+                  style={{
+                    color: theme.mode === 'glass'
+                      ? 'rgba(255, 255, 255, 0.8)'
+                      : theme.colors.textSecondary
+                  }}
+                  title={getLocationTooltip(entry.location)}
+                >
+                  <MapPin className="w-4 h-4" />
+                  <span>位置</span>
+                  <span className="ml-1 font-medium">
+                    {entry.location.name || '未知位置'}
+                  </span>
+                </div>
+              )}
             </>
           )}
         </div>

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save } from 'lucide-react';
-import { DiaryEntry, MoodType, WeatherType } from '../types';
+import { DiaryEntry, MoodType, WeatherType, LocationInfo } from '../types';
 import { MarkdownEditor } from './MarkdownEditor';
 import { ImageUpload } from './ImageUpload';
+import { LocationPicker } from './LocationPicker';
 import { useThemeContext } from './ThemeProvider';
 
 interface DiaryFormProps {
@@ -37,6 +38,7 @@ export function DiaryForm({ entry, onSave, onCancel, isOpen }: DiaryFormProps) {
   const [mood, setMood] = useState<MoodType>('neutral');
   const [weather, setWeather] = useState<WeatherType>('unknown');
   const [images, setImages] = useState<string[]>([]);
+  const [location, setLocation] = useState<LocationInfo | null>(null);
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -62,6 +64,7 @@ export function DiaryForm({ entry, onSave, onCancel, isOpen }: DiaryFormProps) {
       setMood((entry.mood as MoodType) || 'neutral');
       setWeather((entry.weather as WeatherType) || 'unknown');
       setImages(entry.images || []);
+      setLocation(entry.location || null);
       setTags(entry.tags || []);
     } else {
       setTitle('');
@@ -70,6 +73,7 @@ export function DiaryForm({ entry, onSave, onCancel, isOpen }: DiaryFormProps) {
       setMood('neutral');
       setWeather('unknown');
       setImages([]);
+      setLocation(null);
       setTags([]);
     }
     setTagInput('');
@@ -88,6 +92,7 @@ export function DiaryForm({ entry, onSave, onCancel, isOpen }: DiaryFormProps) {
         mood,
         weather,
         images,
+        location,
         tags,
       });
     } finally {
@@ -393,6 +398,13 @@ export function DiaryForm({ entry, onSave, onCancel, isOpen }: DiaryFormProps) {
                   ))}
                 </div>
               </div>
+
+              {/* Location */}
+              <LocationPicker
+                location={location}
+                onLocationChange={setLocation}
+                disabled={loading}
+              />
             </>
           )}
 

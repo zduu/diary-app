@@ -120,6 +120,7 @@ class MockApiService {
       weather: entry.weather || 'unknown',
       tags: entry.tags || [],
       images: entry.images || [],
+      location: entry.location || null,
       hidden: entry.hidden || false
     };
 

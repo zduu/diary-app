@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Clock, Edit, Sun, Cloud, CloudRain, Snowflake } from 'lucide-react';
-import { DiaryEntry, MoodType, WeatherType } from '../types';
+import { Clock, Edit, Sun, Cloud, CloudRain, Snowflake, MapPin } from 'lucide-react';
+import { DiaryEntry, MoodType, WeatherType, LocationInfo } from '../types';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { getSmartTimeDisplay, formatLocalDate } from '../utils/timeUtils';
 import { useThemeContext } from './ThemeProvider';
@@ -42,6 +42,21 @@ export function TimelineView({ entries, onEdit }: TimelineViewProps) {
   const [imageViewerOpen, setImageViewerOpen] = useState(false);
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+
+  // 生成位置信息的工具提示
+  const getLocationTooltip = (location: LocationInfo) => {
+    const parts = [];
+
+    if (location.address) {
+      parts.push(`地址: ${location.address}`);
+    }
+
+    if (location.latitude && location.longitude) {
+      parts.push(`坐标: ${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}`);
+    }
+
+    return parts.join('\n') || location.name || '位置信息';
+  };
 
   // 检测是否为移动设备
   useEffect(() => {
@@ -281,6 +296,34 @@ export function TimelineView({ entries, onEdit }: TimelineViewProps) {
                       {formatLocalDate(entry.created_at!)}
                     </span>
                   </div>
+
+                  {entry.location && (
+                    <div className="flex items-center gap-1">
+                      <MapPin className="w-4 h-4" style={{
+                        color: theme.mode === 'glass'
+                          ? 'rgba(255, 255, 255, 0.8)'
+                          : theme.colors.textSecondary
+                      }} />
+                      <span style={{
+                        color: theme.mode === 'glass'
+                          ? 'rgba(255, 255, 255, 0.8)'
+                          : theme.colors.textSecondary
+                      }}>
+                        {!isMobile && '位置'}
+                      </span>
+                      <span
+                        className="ml-1 font-medium"
+                        style={{
+                          color: theme.mode === 'glass'
+                            ? 'rgba(255, 255, 255, 0.95)'
+                            : theme.colors.text
+                        }}
+                        title={getLocationTooltip(entry.location)}
+                      >
+                        {entry.location.name || '未知位置'}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

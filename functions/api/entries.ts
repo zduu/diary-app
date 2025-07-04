@@ -1,4 +1,30 @@
 // Types
+interface POI {
+  name: string;
+  type: string;
+  distance: number;
+}
+
+interface LocationDetails {
+  building?: string;
+  house_number?: string;
+  road?: string;
+  neighbourhood?: string;
+  suburb?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+}
+
+interface LocationInfo {
+  name?: string;
+  latitude?: number;
+  longitude?: number;
+  address?: string;
+  nearbyPOIs?: POI[];
+  details?: LocationDetails;
+}
+
 interface DiaryEntry {
   id?: number;
   title: string;
@@ -7,6 +33,7 @@ interface DiaryEntry {
   mood?: string;
   weather?: string;
   images?: string[];
+  location?: LocationInfo | null;
   created_at?: string;
   updated_at?: string;
   tags?: string[];
@@ -39,10 +66,11 @@ class DiaryDatabase {
   async createEntry(entry: Omit<DiaryEntry, 'id' | 'created_at' | 'updated_at'>): Promise<DiaryEntry> {
     const tagsJson = JSON.stringify(entry.tags || []);
     const imagesJson = JSON.stringify(entry.images || []);
+    const locationJson = entry.location ? JSON.stringify(entry.location) : null;
 
     const result = await this.db.prepare(`
-      INSERT INTO diary_entries (title, content, content_type, mood, weather, images, tags, hidden)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO diary_entries (title, content, content_type, mood, weather, images, location, tags, hidden)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       RETURNING *
     `).bind(
       entry.title,
@@ -51,6 +79,7 @@ class DiaryDatabase {
       entry.mood || 'neutral',
       entry.weather || 'unknown',
       imagesJson,
+      locationJson,
       tagsJson,
       entry.hidden ? 1 : 0
     ).first();
@@ -79,6 +108,7 @@ class DiaryDatabase {
 
         const tagsJson = updates.tags ? JSON.stringify(updates.tags) : undefined;
         const imagesJson = updates.images ? JSON.stringify(updates.images) : undefined;
+        const locationJson = updates.location !== undefined ? (updates.location ? JSON.stringify(updates.location) : null) : undefined;
 
         const result = await this.db.prepare(`
           UPDATE diary_entries
@@ -88,6 +118,7 @@ class DiaryDatabase {
               mood = COALESCE(?, mood),
               weather = COALESCE(?, weather),
               images = COALESCE(?, images),
+              location = COALESCE(?, location),
               tags = COALESCE(?, tags),
               hidden = COALESCE(?, hidden),
               updated_at = CURRENT_TIMESTAMP
@@ -100,6 +131,7 @@ class DiaryDatabase {
           updates.mood,
           updates.weather,
           imagesJson,
+          locationJson,
           tagsJson,
           updates.hidden !== undefined ? (updates.hidden ? 1 : 0) : undefined,
           id
@@ -147,6 +179,7 @@ class DiaryDatabase {
       mood: row.mood,
       weather: row.weather,
       images: JSON.parse(row.images || '[]'),
+      location: row.location ? JSON.parse(row.location) : null,
       created_at: row.created_at,
       updated_at: row.updated_at,
       tags: JSON.parse(row.tags || '[]'),

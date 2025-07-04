@@ -1,4 +1,4 @@
-import { DiaryEntry, ApiResponse } from '../../../src/types';
+import { DiaryEntry, ApiResponse, LocationInfo, POI, LocationDetails } from '../../../src/types';
 
 interface Env {
   DB: D1Database;
@@ -173,6 +173,7 @@ class DiaryDatabase {
       mood: row.mood,
       weather: row.weather,
       images: JSON.parse(row.images || '[]'),
+      location: row.location ? JSON.parse(row.location) : null,
       created_at: row.created_at,
       updated_at: row.updated_at,
       tags: JSON.parse(row.tags || '[]'),
