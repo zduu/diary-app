@@ -94,10 +94,24 @@ VITE_AMAP_SECURITY_CODE=c3dgfvers5p6q7r8
    - 不要将API密钥提交到代码仓库
 
 ### Cloudflare Pages 部署配置
-在 Cloudflare Pages 的环境变量中添加：
+
+#### 最小配置（推荐）
+如果只需要基本位置识别功能，在 Cloudflare Pages 的环境变量中添加：
 ```
-VITE_AMAP_WEB_KEY = 你的API密钥
+VITE_AMAP_WEB_KEY = 你的Web服务API密钥
 ```
+
+#### 完整配置
+如果需要地图选择功能，添加所有三个环境变量：
+```
+VITE_AMAP_WEB_KEY = 你的Web服务API密钥
+VITE_AMAP_JS_KEY = 你的JavaScript API密钥
+VITE_AMAP_SECURITY_CODE = 你的安全密钥
+```
+
+**说明**：
+- `VITE_AMAP_WEB_KEY` - **必需**，用于位置识别
+- `VITE_AMAP_JS_KEY` 和 `VITE_AMAP_SECURITY_CODE` - **可选**，用于地图选择功能
 
 ## 🧪 测试配置
 
