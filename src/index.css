@@ -411,6 +411,28 @@ body {
   z-index: 1;
 }
 
+/* 确保位置详情弹窗在紫色主题下也能正确显示在最顶层 */
+.theme-purple div[style*="zIndex: 10000"],
+.theme-purple div[style*="z-index: 10000"] {
+  z-index: 10000 !important;
+}
+
+/* 更通用的解决方案：确保所有高z-index的弹窗都能正确显示 */
+body.theme-purple > div[style*="position: fixed"][style*="inset: 0"] {
+  z-index: 10000 !important;
+}
+
+/* 专门针对位置详情弹窗的样式修复 */
+.location-detail-modal {
+  z-index: 10000 !important;
+  position: fixed !important;
+}
+
+/* 确保在紫色主题下位置详情弹窗能正确显示 */
+body.theme-purple .location-detail-modal {
+  z-index: 10000 !important;
+}
+
 /* 紫色主题的头部样式 - 参考blog-guide */
 .theme-purple header {
   background: transparent !important;

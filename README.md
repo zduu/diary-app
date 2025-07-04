@@ -14,11 +14,12 @@
 ### 📝 核心功能
 - **Markdown 支持**: 完整支持 Markdown 语法，包括代码高亮
 - **图片上传**: 支持拖拽上传图片，自动压缩优化
-- **智能位置记录**:
-  - 一键获取当前GPS位置，自动识别周围建筑和地标
-  - 显示详细地址信息和附近兴趣点（餐厅、商店、景点等）
+- **精准位置记录**:
+  - 集成高德地图API，提供中国地区最准确的位置识别
+  - 一键获取当前GPS位置，智能识别具体地址
+  - 显示详细地址信息（省市区、街道、建筑物等）
   - 支持手动输入位置名称
-  - 在日记中显示位置信息和周围环境
+  - 多重备用方案：高德地图 → 浏览器地理编码 → 智能离线模式
 - **智能时间显示**: 自动显示相对时间和具体日期
 - **心情记录**: 支持记录当天心情状态
 - **天气记录**: 可选择当时的天气情况
@@ -59,16 +60,46 @@ cd diary-app
 # 安装依赖
 npm install
 
-# 配置数据库
-npx wrangler d1 create diary-db
-# 复制返回的数据库 ID，更新 wrangler.toml 中的 database_id
-npx wrangler d1 execute diary-db --remote --file=schema.sql
+# 配置高德地图API（可选，用于精准位置识别）
+cp .env.example .env.local
+# 编辑 .env.local 文件，填入您的高德地图API密钥
+# 详细配置指南：docs/amap-api-setup.md
 
-# 启动开发服务器
+# 本地开发（推荐）- 使用模拟数据
 npm start
+
+# 局域网访问（移动端测试）
+npm run start:network
+
+# 远程数据库开发（需要先配置数据库）
+npm run start:remote
 ```
 
 应用将在 http://localhost:5173 启动
+
+### 🗺️ 高德地图API配置（推荐）
+
+为了获得最准确的位置识别，建议配置高德地图API：
+
+1. **申请API密钥**：
+   - 访问 [高德开放平台](https://lbs.amap.com/)
+   - 注册账号并创建应用
+   - 获取Web服务API密钥
+
+2. **配置密钥**：
+   ```bash
+   # 复制配置文件
+   cp .env.example .env.local
+
+   # 编辑配置文件
+   VITE_AMAP_WEB_KEY=你的高德地图API密钥
+   ```
+
+3. **详细配置指南**：查看 `docs/amap-api-setup.md`
+
+**免费配额**：每日100万次调用，个人使用完全够用
+
+**备用方案**：如果不配置API密钥，系统会自动使用智能离线模式
 
 ### 默认密码
 - **管理员密码**: `admin123`

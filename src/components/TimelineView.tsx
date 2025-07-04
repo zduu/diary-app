@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Clock, Edit, Sun, Cloud, CloudRain, Snowflake, MapPin } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Clock, Edit, Sun, Cloud, CloudRain, Snowflake, MapPin, X } from 'lucide-react';
 import { DiaryEntry, MoodType, WeatherType, LocationInfo } from '../types';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { getSmartTimeDisplay, formatLocalDate } from '../utils/timeUtils';
@@ -42,20 +43,13 @@ export function TimelineView({ entries, onEdit }: TimelineViewProps) {
   const [imageViewerOpen, setImageViewerOpen] = useState(false);
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [locationDetailOpen, setLocationDetailOpen] = useState(false);
+  const [selectedLocation, setSelectedLocation] = useState<LocationInfo | null>(null);
 
-  // 生成位置信息的工具提示
-  const getLocationTooltip = (location: LocationInfo) => {
-    const parts = [];
-
-    if (location.address) {
-      parts.push(`地址: ${location.address}`);
-    }
-
-    if (location.latitude && location.longitude) {
-      parts.push(`坐标: ${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}`);
-    }
-
-    return parts.join('\n') || location.name || '位置信息';
+  // 处理位置点击
+  const handleLocationClick = (location: LocationInfo) => {
+    setSelectedLocation(location);
+    setLocationDetailOpen(true);
   };
 
   // 检测是否为移动设备
@@ -298,7 +292,11 @@ export function TimelineView({ entries, onEdit }: TimelineViewProps) {
                   </div>
 
                   {entry.location && (
-                    <div className="flex items-center gap-1">
+                    <div
+                      className="flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity"
+                      onClick={() => handleLocationClick(entry.location!)}
+                      title="点击查看详细位置信息"
+                    >
                       <MapPin className="w-4 h-4" style={{
                         color: theme.mode === 'glass'
                           ? 'rgba(255, 255, 255, 0.8)'
@@ -318,7 +316,6 @@ export function TimelineView({ entries, onEdit }: TimelineViewProps) {
                             ? 'rgba(255, 255, 255, 0.95)'
                             : theme.colors.text
                         }}
-                        title={getLocationTooltip(entry.location)}
                       >
                         {entry.location.name || '未知位置'}
                       </span>
@@ -338,6 +335,136 @@ export function TimelineView({ entries, onEdit }: TimelineViewProps) {
         isOpen={imageViewerOpen}
         onClose={() => setImageViewerOpen(false)}
       />
+
+      {/* 位置详情弹窗 - 使用 Portal 渲染到 body */}
+      {locationDetailOpen && selectedLocation && createPortal(
+        <div
+          className="location-detail-modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4"
+          style={{ zIndex: 10000 }}
+          onClick={(e) => {
+            // 点击背景关闭弹窗
+            if (e.target === e.currentTarget) {
+              setLocationDetailOpen(false);
+            }
+          }}
+        >
+          <div
+            className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-4 sm:p-6 max-h-[90vh] overflow-y-auto"
+            style={{ backgroundColor: theme.colors.background }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold flex items-center gap-2" style={{ color: theme.colors.text }}>
+                <MapPin className="w-5 h-5" style={{ color: theme.colors.primary }} />
+                位置详情
+              </h3>
+              <button
+                onClick={() => setLocationDetailOpen(false)}
+                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                style={{
+                  backgroundColor: theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : undefined
+                }}
+              >
+                <X className="w-5 h-5" style={{ color: theme.colors.text }} />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {/* 位置名称 */}
+              <div>
+                <label className="text-sm font-medium" style={{ color: theme.colors.textSecondary }}>
+                  位置名称
+                </label>
+                <div className="mt-1 p-2 rounded border" style={{
+                  backgroundColor: theme.colors.surface,
+                  borderColor: theme.colors.border,
+                  color: theme.colors.text
+                }}>
+                  {selectedLocation.name || '未知位置'}
+                </div>
+              </div>
+
+              {/* 详细地址 */}
+              {selectedLocation.address && (
+                <div>
+                  <label className="text-sm font-medium" style={{ color: theme.colors.textSecondary }}>
+                    详细地址
+                  </label>
+                  <div className="mt-1 p-2 rounded border" style={{
+                    backgroundColor: theme.colors.surface,
+                    borderColor: theme.colors.border,
+                    color: theme.colors.text
+                  }}>
+                    {selectedLocation.address}
+                  </div>
+                </div>
+              )}
+
+              {/* GPS坐标 */}
+              {(selectedLocation.latitude && selectedLocation.longitude) && (
+                <div>
+                  <label className="text-sm font-medium" style={{ color: theme.colors.textSecondary }}>
+                    GPS坐标
+                  </label>
+                  <div className="mt-1 p-2 rounded border font-mono text-sm" style={{
+                    backgroundColor: theme.colors.surface,
+                    borderColor: theme.colors.border,
+                    color: theme.colors.text
+                  }}>
+                    纬度: {selectedLocation.latitude.toFixed(6)}
+                    <br />
+                    经度: {selectedLocation.longitude.toFixed(6)}
+                  </div>
+                </div>
+              )}
+
+              {/* 位置详情 */}
+              {selectedLocation.details && (
+                <div>
+                  <label className="text-sm font-medium" style={{ color: theme.colors.textSecondary }}>
+                    位置详情
+                  </label>
+                  <div className="mt-1 p-2 rounded border text-sm" style={{
+                    backgroundColor: theme.colors.surface,
+                    borderColor: theme.colors.border,
+                    color: theme.colors.text
+                  }}>
+                    {selectedLocation.details.country && (
+                      <div>国家: {selectedLocation.details.country}</div>
+                    )}
+                    {selectedLocation.details.state && (
+                      <div>省份: {selectedLocation.details.state}</div>
+                    )}
+                    {selectedLocation.details.city && (
+                      <div>城市: {selectedLocation.details.city}</div>
+                    )}
+                    {selectedLocation.details.suburb && (
+                      <div>区域: {selectedLocation.details.suburb}</div>
+                    )}
+                    {selectedLocation.details.road && (
+                      <div>道路: {selectedLocation.details.road}</div>
+                    )}
+                    {selectedLocation.details.building && (
+                      <div>建筑: {selectedLocation.details.building}</div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => setLocationDetailOpen(false)}
+                className="px-4 py-2 rounded-md text-white font-medium"
+                style={{ backgroundColor: theme.colors.primary }}
+              >
+                关闭
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

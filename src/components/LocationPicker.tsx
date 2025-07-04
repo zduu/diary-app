@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { MapPin, Loader, X, Navigation } from 'lucide-react';
+import { MapPin, Loader, X, Navigation, Map } from 'lucide-react';
 import { LocationInfo } from '../types';
 import { useThemeContext } from './ThemeProvider';
+import { LOCATION_CONFIG, isAmapConfigured, getAmapRegeoUrl } from '../config/location';
+import { MapLocationPicker } from './MapLocationPicker';
 
 interface LocationPickerProps {
   location: LocationInfo | null;
@@ -15,6 +17,7 @@ export function LocationPicker({ location, onLocationChange, disabled }: Locatio
   const [locationError, setLocationError] = useState<string | null>(null);
   const [manualLocation, setManualLocation] = useState('');
   const [showManualInput, setShowManualInput] = useState(false);
+  const [showMapPicker, setShowMapPicker] = useState(false);
 
   // 获取当前位置
   const getCurrentLocation = async () => {
@@ -48,9 +51,16 @@ export function LocationPicker({ location, onLocationChange, disabled }: Locatio
         const offlineLocationInfo = createSmartOfflineLocation(latitude, longitude);
         onLocationChange(offlineLocationInfo);
 
-        // 显示友好的成功信息
-        setLocationError('✅ 已智能识别位置信息！由于网络限制，使用了离线模式。');
-        setTimeout(() => setLocationError(null), 4000);
+        // 显示友好的成功信息，根据失败原因提供不同提示
+        let message = '✅ 已智能识别位置信息！';
+        const errorMessage = geocodeError instanceof Error ? geocodeError.message : String(geocodeError);
+        if (errorMessage.includes('USERKEY_PLAT_NOMATCH')) {
+          message += ' 高德地图API配置需要调整，当前使用离线模式。';
+        } else {
+          message += ' 由于网络限制，使用了离线模式。';
+        }
+        setLocationError(message);
+        setTimeout(() => setLocationError(null), 6000);
       }
     } catch (error) {
       let errorMessage = '获取位置失败';
@@ -73,11 +83,22 @@ export function LocationPicker({ location, onLocationChange, disabled }: Locatio
     }
   };
 
-  // 获取详细的位置信息，包括周围建筑
+  // 获取详细的位置信息，使用高德地图API
   const getDetailedLocationInfo = async (lat: number, lng: number) => {
     console.log('开始获取位置信息:', lat, lng);
 
-    // 首先尝试使用浏览器的内置地理编码（如果可用）
+    // 优先使用高德地图API（最准确）
+    try {
+      const amapLocationInfo = await tryAmapGeocoding(lat, lng);
+      if (amapLocationInfo) {
+        console.log('高德地图地理编码成功:', amapLocationInfo);
+        return amapLocationInfo;
+      }
+    } catch (error) {
+      console.log('高德地图API失败:', error);
+    }
+
+    // 备用：尝试使用浏览器的内置地理编码
     try {
       const browserLocationInfo = await tryBrowserGeocoding(lat, lng);
       if (browserLocationInfo) {
@@ -88,35 +109,141 @@ export function LocationPicker({ location, onLocationChange, disabled }: Locatio
       console.log('浏览器地理编码不可用:', error);
     }
 
-    // 尝试使用代理服务或JSONP方式
-    const geocodeServices = [
-      // 使用JSONP方式避免CORS问题
-      {
-        name: 'Nominatim-JSONP',
-        method: 'jsonp'
-      },
-      // 如果有代理服务可以添加在这里
-    ];
-
-    for (const service of geocodeServices) {
-      try {
-        if (service.method === 'jsonp') {
-          console.log('尝试使用JSONP方式获取位置信息...');
-          const locationInfo = await tryJSONPGeocoding(lat, lng);
-          if (locationInfo) {
-            console.log('JSONP地理编码成功:', locationInfo);
-            return locationInfo;
-          }
-        }
-      } catch (error) {
-        console.error(`${service.name} 服务失败:`, error);
-        continue;
+    // 备用：尝试使用OpenStreetMap JSONP方式
+    try {
+      console.log('尝试使用OpenStreetMap JSONP方式...');
+      const locationInfo = await tryJSONPGeocoding(lat, lng);
+      if (locationInfo) {
+        console.log('OpenStreetMap地理编码成功:', locationInfo);
+        return locationInfo;
       }
+    } catch (error) {
+      console.error('OpenStreetMap服务失败:', error);
     }
 
     // 所有在线服务都失败，使用智能离线模式
     console.log('所有在线服务失败，使用智能离线模式');
     return createSmartOfflineLocation(lat, lng);
+  };
+
+  // 使用高德地图API进行地理编码
+  const tryAmapGeocoding = async (lat: number, lng: number) => {
+    try {
+      // 检查是否启用高德地图API
+      if (!LOCATION_CONFIG.ENABLE_AMAP) {
+        console.log('高德地图API已禁用');
+        return null;
+      }
+
+      // 检查API密钥是否已配置
+      if (!isAmapConfigured()) {
+        console.log('高德地图API密钥未配置，跳过');
+        return null;
+      }
+
+      // 获取高德地图逆地理编码URL
+      const url = getAmapRegeoUrl(lng, lat);
+      console.log('调用高德地图API:', url);
+
+      // 创建带超时的fetch请求
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), LOCATION_CONFIG.API_TIMEOUT);
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`高德地图API响应错误: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('高德地图API响应:', data);
+
+      if (data.status !== '1' || !data.regeocode) {
+        const errorMsg = data.info || '未知错误';
+        console.warn(`高德地图API错误: ${errorMsg} (错误码: ${data.infocode})`);
+
+        // 提供更友好的错误信息
+        if (data.infocode === '10009') {
+          console.warn('API密钥配置问题：请确保在高德控制台中将服务平台设置为"Web服务"');
+        }
+
+        throw new Error(`高德地图API返回错误: ${errorMsg}`);
+      }
+
+      const regeocode = data.regeocode;
+      const addressComponent = regeocode.addressComponent;
+      const formattedAddress = regeocode.formatted_address;
+
+      // 构建位置信息
+      const locationName = getAmapLocationName(addressComponent, formattedAddress);
+
+      return {
+        name: locationName,
+        latitude: lat,
+        longitude: lng,
+        address: formattedAddress,
+        details: {
+          building: addressComponent.building?.name,
+          neighborhood: addressComponent.neighborhood?.name,
+          township: addressComponent.township?.name,
+          street: addressComponent.streetNumber?.street,
+          streetNumber: addressComponent.streetNumber?.number,
+          district: addressComponent.district,
+          city: addressComponent.city,
+          province: addressComponent.province,
+          country: '中国'
+        }
+      };
+    } catch (error) {
+      console.error('高德地图API调用失败:', error);
+      return null;
+    }
+  };
+
+  // 从高德地图数据中智能选择位置名称
+  const getAmapLocationName = (addressComponent: any, formattedAddress: string) => {
+    // 优先级：建筑物 > 小区 > 街道+门牌号 > 乡镇 > 区县
+    if (addressComponent.building?.name) {
+      return addressComponent.building.name;
+    }
+
+    if (addressComponent.neighborhood?.name) {
+      return addressComponent.neighborhood.name;
+    }
+
+    if (addressComponent.streetNumber?.street && addressComponent.streetNumber?.number) {
+      return `${addressComponent.streetNumber.street}${addressComponent.streetNumber.number}号`;
+    }
+
+    if (addressComponent.streetNumber?.street) {
+      return addressComponent.streetNumber.street;
+    }
+
+    if (addressComponent.township?.name) {
+      return addressComponent.township.name;
+    }
+
+    if (addressComponent.district) {
+      return `${addressComponent.city || ''}${addressComponent.district}`;
+    }
+
+    // 如果都没有，从格式化地址中提取第一部分
+    if (formattedAddress) {
+      const parts = formattedAddress.split(/[省市区县]/);
+      if (parts.length > 1) {
+        return parts[parts.length - 1].trim();
+      }
+    }
+
+    return '未知位置';
   };
 
   // 尝试使用浏览器内置的地理编码
@@ -493,6 +620,8 @@ export function LocationPicker({ location, onLocationChange, disabled }: Locatio
 
   return (
     <div className="space-y-3">
+
+
       <label
         className="block text-sm font-medium"
         style={{ color: theme.colors.text }}
@@ -649,6 +778,23 @@ export function LocationPicker({ location, onLocationChange, disabled }: Locatio
             手动输入
           </button>
 
+          <button
+            type="button"
+            onClick={() => setShowMapPicker(true)}
+            disabled={disabled}
+            className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium border transition-all duration-200 hover:opacity-80"
+            style={{
+              borderColor: theme.colors.primary,
+              color: theme.colors.primary,
+              backgroundColor: theme.colors.surface,
+              position: 'relative',
+              zIndex: 10
+            }}
+          >
+            <Map className="w-4 h-4" />
+            地图选择
+          </button>
+
           {/* 测试按钮 - 仅在开发环境显示 */}
           {import.meta.env.DEV && (
             <button
@@ -731,6 +877,19 @@ export function LocationPicker({ location, onLocationChange, disabled }: Locatio
           </button>
         </div>
       )}
+
+      {/* 地图位置选择器 */}
+      <MapLocationPicker
+        isOpen={showMapPicker}
+        onClose={() => setShowMapPicker(false)}
+        onLocationSelect={(selectedLocation) => {
+          onLocationChange(selectedLocation);
+          setShowMapPicker(false);
+        }}
+        initialLocation={location ? { lat: location.latitude!, lng: location.longitude! } : null}
+      />
+
+
     </div>
   );
 }
