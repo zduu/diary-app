@@ -121,4 +121,12 @@ export function formatLocalDate(dateString: string): string {
   });
 }
 
+/**
+ * 格式化完整的日期时间显示（包含具体时间）
+ */
+export function formatFullDateTime(dateString: string): string {
+  const date = new Date(normalizeTimeString(dateString));
+  return format(date, 'yyyy年MM月dd日 HH:mm', { locale: zhCN });
+}
+
 

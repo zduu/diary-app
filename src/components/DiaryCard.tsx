@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Calendar, Cloud, Sun, CloudRain, Snowflake, Edit, Image as ImageIcon, MoreHorizontal, ChevronDown, ChevronUp, MapPin, X } from 'lucide-react';
 import { DiaryEntry, MoodType, WeatherType } from '../types';
 import { MarkdownRenderer } from './MarkdownRenderer';
-import { getSmartTimeDisplay, formatLocalDate } from '../utils/timeUtils';
+import { getSmartTimeDisplay, formatFullDateTime } from '../utils/timeUtils';
 import { useThemeContext } from './ThemeProvider';
 import { useAdminAuth } from './AdminPanel';
 import { ImageViewer } from './ImageViewer';
@@ -336,7 +336,7 @@ export function DiaryCard({ entry, onEdit }: DiaryCardProps) {
                     ? 'rgba(255, 255, 255, 0.9)'
                     : theme.colors.textSecondary
                 }}>
-                  {formatLocalDate(entry.created_at!)}
+                  {formatFullDateTime(entry.created_at!)}
                 </span>
               </div>
             </>
@@ -378,7 +378,7 @@ export function DiaryCard({ entry, onEdit }: DiaryCardProps) {
                 {weatherIcons[weather]}
                 <span>天气</span>
                 <span className="ml-2">
-                  {formatLocalDate(entry.created_at!)}
+                  {formatFullDateTime(entry.created_at!)}
                 </span>
               </div>
 

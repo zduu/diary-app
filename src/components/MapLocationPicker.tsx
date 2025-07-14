@@ -37,8 +37,39 @@ export function MapLocationPicker({
   const markerRef = useRef<any>(null);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<LocationInfo | null>(null);
+  const [mapCenter, setMapCenter] = useState<[number, number]>([121.4554, 31.0384]); // 默认交大位置
 
   console.log('🗺️ MapLocationPicker 渲染:', { isOpen });
+
+  // 获取用户当前位置作为地图中心
+  useEffect(() => {
+    if (!isOpen) return;
+
+    // 如果有初始位置，使用初始位置
+    if (initialLocation) {
+      setMapCenter([initialLocation.lng, initialLocation.lat]);
+      return;
+    }
+
+    // 尝试获取用户当前位置
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          setMapCenter([longitude, latitude]);
+          console.log('🗺️ 获取到用户位置，设置为地图中心:', { longitude, latitude });
+        },
+        (error) => {
+          console.log('🗺️ 无法获取用户位置，使用默认位置:', error.message);
+          // 保持默认位置
+        },
+        {
+          timeout: 5000,
+          enableHighAccuracy: false
+        }
+      );
+    }
+  }, [isOpen, initialLocation]);
 
   // 加载高德地图API
   useEffect(() => {
@@ -80,7 +111,7 @@ export function MapLocationPicker({
         // 创建地图实例
         const map = new window.AMap.Map(mapContainerRef.current, {
           zoom: 16,
-          center: initialLocation ? [initialLocation.lng, initialLocation.lat] : [121.4554, 31.0384],
+          center: mapCenter,
           mapStyle: theme.mode === 'dark' ? 'amap://styles/dark' : 'amap://styles/normal'
         });
 
@@ -112,7 +143,7 @@ export function MapLocationPicker({
         mapRef.current = null;
       }
     };
-  }, [isOpen, initialLocation, theme.mode]);
+  }, [isOpen, mapCenter, theme.mode]);
 
   // 地图点击事件
   const handleMapClick = async (e: any) => {

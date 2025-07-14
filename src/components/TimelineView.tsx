@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Clock, Edit, Sun, Cloud, CloudRain, Snowflake, MapPin, X } from 'lucide-react';
 import { DiaryEntry, MoodType, WeatherType, LocationInfo } from '../types';
 import { MarkdownRenderer } from './MarkdownRenderer';
-import { getSmartTimeDisplay, formatLocalDate } from '../utils/timeUtils';
+import { getSmartTimeDisplay, formatFullDateTime } from '../utils/timeUtils';
 import { useThemeContext } from './ThemeProvider';
 import { useAdminAuth } from './AdminPanel';
 import { ImageViewer } from './ImageViewer';
@@ -287,7 +287,7 @@ export function TimelineView({ entries, onEdit }: TimelineViewProps) {
                           : theme.colors.textSecondary
                       }}
                     >
-                      {formatLocalDate(entry.created_at!)}
+                      {formatFullDateTime(entry.created_at!)}
                     </span>
                   </div>
 
