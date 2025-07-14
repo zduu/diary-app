@@ -20,6 +20,10 @@ const moods: { value: MoodType; label: string; emoji: string }[] = [
   { value: 'excited', label: '兴奋', emoji: '🤩' },
   { value: 'anxious', label: '焦虑', emoji: '😰' },
   { value: 'peaceful', label: '宁静', emoji: '😌' },
+  { value: 'calm', label: '冷静', emoji: '😌' },
+  { value: 'angry', label: '愤怒', emoji: '😠' },
+  { value: 'grateful', label: '感恩', emoji: '🙏' },
+  { value: 'loved', label: '被爱', emoji: '🥰' },
 ];
 
 const weathers: { value: WeatherType; label: string }[] = [
@@ -35,8 +39,12 @@ export function DiaryForm({ entry, onSave, onCancel, isOpen }: DiaryFormProps) {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [contentType, setContentType] = useState<'markdown' | 'plain'>('markdown');
-  const [mood, setMood] = useState<MoodType>('neutral');
-  const [weather, setWeather] = useState<WeatherType>('unknown');
+  const [mood, setMood] = useState<string>('neutral');
+  const [weather, setWeather] = useState<string>('unknown');
+  const [customMood, setCustomMood] = useState('');
+  const [customWeather, setCustomWeather] = useState('');
+  const [showCustomMood, setShowCustomMood] = useState(false);
+  const [showCustomWeather, setShowCustomWeather] = useState(false);
   const [images, setImages] = useState<string[]>([]);
   const [location, setLocation] = useState<LocationInfo | null>(null);
   const [tags, setTags] = useState<string[]>([]);
@@ -61,8 +69,33 @@ export function DiaryForm({ entry, onSave, onCancel, isOpen }: DiaryFormProps) {
       setTitle(entry.title);
       setContent(entry.content);
       setContentType((entry.content_type as 'markdown' | 'plain') || 'markdown');
-      setMood((entry.mood as MoodType) || 'neutral');
-      setWeather((entry.weather as WeatherType) || 'unknown');
+
+      // 处理心情：检查是否为预定义选项
+      const entryMood = entry.mood || 'neutral';
+      const predefinedMood = moods.find(m => m.value === entryMood);
+      if (predefinedMood) {
+        setMood(entryMood);
+        setShowCustomMood(false);
+        setCustomMood('');
+      } else {
+        setMood('custom');
+        setShowCustomMood(true);
+        setCustomMood(entryMood);
+      }
+
+      // 处理天气：检查是否为预定义选项
+      const entryWeather = entry.weather || 'unknown';
+      const predefinedWeather = weathers.find(w => w.value === entryWeather);
+      if (predefinedWeather) {
+        setWeather(entryWeather);
+        setShowCustomWeather(false);
+        setCustomWeather('');
+      } else {
+        setWeather('custom');
+        setShowCustomWeather(true);
+        setCustomWeather(entryWeather);
+      }
+
       setImages(entry.images || []);
       setLocation(entry.location || null);
       setTags(entry.tags || []);
@@ -72,6 +105,10 @@ export function DiaryForm({ entry, onSave, onCancel, isOpen }: DiaryFormProps) {
       setContentType('markdown');
       setMood('neutral');
       setWeather('unknown');
+      setCustomMood('');
+      setCustomWeather('');
+      setShowCustomMood(false);
+      setShowCustomWeather(false);
       setImages([]);
       setLocation(null);
       setTags([]);
@@ -85,12 +122,16 @@ export function DiaryForm({ entry, onSave, onCancel, isOpen }: DiaryFormProps) {
 
     setLoading(true);
     try {
+      // 处理最终的心情和天气值
+      const finalMood = mood === 'custom' ? customMood.trim() : mood;
+      const finalWeather = weather === 'custom' ? customWeather.trim() : weather;
+
       await onSave({
         title: title.trim() || '无标题',
         content: content.trim(),
         content_type: contentType,
-        mood,
-        weather,
+        mood: finalMood,
+        weather: finalWeather,
         images,
         location,
         tags,
@@ -116,6 +157,26 @@ export function DiaryForm({ entry, onSave, onCancel, isOpen }: DiaryFormProps) {
     if (e.key === 'Enter') {
       e.preventDefault();
       addTag();
+    }
+  };
+
+  const handleMoodChange = (value: string) => {
+    setMood(value);
+    if (value === 'custom') {
+      setShowCustomMood(true);
+    } else {
+      setShowCustomMood(false);
+      setCustomMood('');
+    }
+  };
+
+  const handleWeatherChange = (value: string) => {
+    setWeather(value);
+    if (value === 'custom') {
+      setShowCustomWeather(true);
+    } else {
+      setShowCustomWeather(false);
+      setCustomWeather('');
     }
   };
 
@@ -293,23 +354,42 @@ export function DiaryForm({ entry, onSave, onCancel, isOpen }: DiaryFormProps) {
                   >
                     😊 心情
                   </label>
-                  <select
-                    value={mood}
-                    onChange={(e) => setMood(e.target.value as MoodType)}
-                    className={`w-full ${isMobile ? 'px-3 py-2' : 'px-3 py-2'} border rounded-md focus:outline-none focus:ring-2 transition-all duration-200`}
-                    style={{
-                      backgroundColor: theme.colors.surface,
-                      borderColor: theme.colors.border,
-                      color: theme.colors.text,
-                      '--tw-ring-color': theme.colors.primary,
-                    } as React.CSSProperties}
-                  >
-                    {moods.map((m) => (
-                      <option key={m.value} value={m.value}>
-                        {m.emoji} {m.label}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="space-y-2">
+                    <select
+                      value={mood}
+                      onChange={(e) => handleMoodChange(e.target.value)}
+                      className={`w-full ${isMobile ? 'px-3 py-2' : 'px-3 py-2'} border rounded-md focus:outline-none focus:ring-2 transition-all duration-200`}
+                      style={{
+                        backgroundColor: theme.colors.surface,
+                        borderColor: theme.colors.border,
+                        color: theme.colors.text,
+                        '--tw-ring-color': theme.colors.primary,
+                      } as React.CSSProperties}
+                    >
+                      {moods.map((m) => (
+                        <option key={m.value} value={m.value}>
+                          {m.emoji} {m.label}
+                        </option>
+                      ))}
+                      <option value="custom">✨ 自定义心情</option>
+                    </select>
+
+                    {showCustomMood && (
+                      <input
+                        type="text"
+                        value={customMood}
+                        onChange={(e) => setCustomMood(e.target.value)}
+                        placeholder="输入自定义心情..."
+                        className={`w-full ${isMobile ? 'px-3 py-2' : 'px-3 py-2'} border rounded-md focus:outline-none focus:ring-2 transition-all duration-200`}
+                        style={{
+                          backgroundColor: theme.colors.surface,
+                          borderColor: theme.colors.border,
+                          color: theme.colors.text,
+                          '--tw-ring-color': theme.colors.primary,
+                        } as React.CSSProperties}
+                      />
+                    )}
+                  </div>
                 </div>
 
                 <div>
@@ -319,23 +399,42 @@ export function DiaryForm({ entry, onSave, onCancel, isOpen }: DiaryFormProps) {
                   >
                     🌤️ 天气
                   </label>
-                  <select
-                    value={weather}
-                    onChange={(e) => setWeather(e.target.value as WeatherType)}
-                    className={`w-full ${isMobile ? 'px-3 py-2' : 'px-3 py-2'} border rounded-md focus:outline-none focus:ring-2 transition-all duration-200`}
-                    style={{
-                      backgroundColor: theme.colors.surface,
-                      borderColor: theme.colors.border,
-                      color: theme.colors.text,
-                      '--tw-ring-color': theme.colors.primary,
-                    } as React.CSSProperties}
-                  >
-                    {weathers.map((w) => (
-                      <option key={w.value} value={w.value}>
-                        {w.label}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="space-y-2">
+                    <select
+                      value={weather}
+                      onChange={(e) => handleWeatherChange(e.target.value)}
+                      className={`w-full ${isMobile ? 'px-3 py-2' : 'px-3 py-2'} border rounded-md focus:outline-none focus:ring-2 transition-all duration-200`}
+                      style={{
+                        backgroundColor: theme.colors.surface,
+                        borderColor: theme.colors.border,
+                        color: theme.colors.text,
+                        '--tw-ring-color': theme.colors.primary,
+                      } as React.CSSProperties}
+                    >
+                      {weathers.map((w) => (
+                        <option key={w.value} value={w.value}>
+                          {w.label}
+                        </option>
+                      ))}
+                      <option value="custom">🌈 自定义天气</option>
+                    </select>
+
+                    {showCustomWeather && (
+                      <input
+                        type="text"
+                        value={customWeather}
+                        onChange={(e) => setCustomWeather(e.target.value)}
+                        placeholder="输入自定义天气..."
+                        className={`w-full ${isMobile ? 'px-3 py-2' : 'px-3 py-2'} border rounded-md focus:outline-none focus:ring-2 transition-all duration-200`}
+                        style={{
+                          backgroundColor: theme.colors.surface,
+                          borderColor: theme.colors.border,
+                          color: theme.colors.text,
+                          '--tw-ring-color': theme.colors.primary,
+                        } as React.CSSProperties}
+                      />
+                    )}
+                  </div>
                 </div>
               </div>
 

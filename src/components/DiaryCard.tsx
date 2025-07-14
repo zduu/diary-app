@@ -35,6 +35,26 @@ const weatherIcons: Record<WeatherType, React.ReactNode> = {
   unknown: <Cloud className="w-4 h-4 text-gray-400" />,
 };
 
+// 获取心情显示信息
+const getMoodDisplay = (mood: string) => {
+  const predefinedMood = moodIcons[mood as MoodType];
+  if (predefinedMood) {
+    return predefinedMood;
+  }
+  // 自定义心情使用默认图标
+  return { icon: '💭', color: 'text-purple-500' };
+};
+
+// 获取天气显示信息
+const getWeatherDisplay = (weather: string) => {
+  const predefinedWeather = weatherIcons[weather as WeatherType];
+  if (predefinedWeather) {
+    return predefinedWeather;
+  }
+  // 自定义天气使用默认图标
+  return <Cloud className="w-4 h-4 text-gray-500" />;
+};
+
 export function DiaryCard({ entry, onEdit }: DiaryCardProps) {
   const { theme } = useThemeContext();
   const { isAdminAuthenticated } = useAdminAuth();
@@ -44,9 +64,11 @@ export function DiaryCard({ entry, onEdit }: DiaryCardProps) {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [locationDetailOpen, setLocationDetailOpen] = useState(false);
 
-  const mood = (entry.mood as MoodType) || 'neutral';
-  const weather = (entry.weather as WeatherType) || 'unknown';
+  const mood = entry.mood || 'neutral';
+  const weather = entry.weather || 'unknown';
   const timeDisplay = getSmartTimeDisplay(entry.created_at!);
+  const moodDisplay = getMoodDisplay(mood);
+  const weatherDisplay = getWeatherDisplay(weather);
 
   const handleImageClick = (index: number) => {
     setSelectedImageIndex(index);
@@ -305,10 +327,10 @@ export function DiaryCard({ entry, onEdit }: DiaryCardProps) {
           {isMobile ? (
             <>
               <div className="flex items-center gap-1">
-                <span className="text-base">{moodIcons[mood].icon}</span>
+                <span className="text-base">{moodDisplay.icon}</span>
               </div>
               <div className="flex items-center gap-1">
-                {weatherIcons[weather]}
+                {weatherDisplay}
               </div>
               {entry.location && (
                 <div
@@ -363,8 +385,8 @@ export function DiaryCard({ entry, onEdit }: DiaryCardProps) {
                     : theme.colors.primary
                 }}
               >
-                <span className="text-lg">{moodIcons[mood].icon}</span>
-                <span className="font-medium">心情</span>
+                <span className="text-lg">{moodDisplay.icon}</span>
+                <span className="font-medium">心情: {mood}</span>
               </div>
 
               <div
@@ -375,8 +397,8 @@ export function DiaryCard({ entry, onEdit }: DiaryCardProps) {
                     : theme.colors.textSecondary
                 }}
               >
-                {weatherIcons[weather]}
-                <span>天气</span>
+                {weatherDisplay}
+                <span>天气: {weather}</span>
                 <span className="ml-2">
                   {formatFullDateTime(entry.created_at!)}
                 </span>
