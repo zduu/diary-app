@@ -3,6 +3,7 @@ import { X, MapPin, Search, Navigation, Loader } from 'lucide-react';
 import { LocationInfo } from '../types';
 import { useThemeContext } from './ThemeProvider';
 import { LOCATION_CONFIG, isAmapConfigured, isAmapJSConfigured } from '../config/location';
+import { wgs84ToGcj02 } from '../utils/coordinateUtils';
 
 interface MapLocationPickerProps {
   isOpen: boolean;
@@ -95,16 +96,29 @@ export function MapLocationPicker({
       setIsLoadingMap(true);
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          const { latitude, longitude } = position.coords;
-          const newLocation: [number, number] = [longitude, latitude];
+          const { latitude, longitude, accuracy } = position.coords;
+
+          // 🔧 坐标系转换：GPS(WGS84) -> 高德地图(GCJ02)
+          const gcj02Result = wgs84ToGcj02(latitude, longitude);
+          const convertedLat = gcj02Result.latitude;
+          const convertedLng = gcj02Result.longitude;
+
+          const newLocation: [number, number] = [convertedLng, convertedLat];
           setMapCenter(newLocation);
           setUserLocation(newLocation);
-          console.log('🗺️ 获取到用户位置，设置为地图中心:', { longitude, latitude });
+
+          // 输出调试信息
+          console.log('🗺️ GPS定位成功 (坐标已转换):');
+          console.log('  原始GPS坐标 (WGS84):', { latitude, longitude });
+          console.log('  转换后坐标 (GCJ02):', { latitude: convertedLat, longitude: convertedLng });
+          console.log('  坐标偏移距离:', `${gcj02Result.offset?.distance.toFixed(1)}米`);
+          console.log('  GPS精度:', accuracy ? `${accuracy.toFixed(1)}米` : '未知');
+
           setIsLoadingMap(false);
 
           // 如果地图已经加载，立即添加用户位置标记
           if (mapRef.current && isMapLoaded) {
-            addUserLocationMarker(longitude, latitude);
+            addUserLocationMarker(convertedLng, convertedLat);
           }
         },
         (error) => {
@@ -396,7 +410,7 @@ export function MapLocationPicker({
         }),
         title: '您的位置',
         zIndex: 150,
-        offset: new window.AMap.Pixel(-center, -center) // 使用offset而不是imageOffset
+        offset: new window.AMap.Pixel(-size/2, -size/2) // 使用offset而不是imageOffset
       });
 
       mapRef.current.add(userMarker);
@@ -474,10 +488,9 @@ export function MapLocationPicker({
       canvas.width = size;
       canvas.height = size;
       const ctx = canvas.getContext('2d');
+      const center = size / 2;
 
       if (ctx) {
-        const center = size / 2;
-
         // 绘制红色圆点
         ctx.beginPath();
         ctx.arc(center, center, 8, 0, 2 * Math.PI);
@@ -758,11 +771,24 @@ export function MapLocationPicker({
           // 如果达到最大尝试次数，或者精度已经很好了，就使用最佳位置
           if (attempts >= maxAttempts || (accuracy && accuracy <= 20)) {
             const finalPosition = bestPosition!;
-            const { latitude: finalLat, longitude: finalLng } = finalPosition.coords;
-            const newLocation: [number, number] = [finalLng, finalLat];
+            const { latitude: finalLat, longitude: finalLng, accuracy: finalAccuracy } = finalPosition.coords;
+
+            // 🔧 坐标系转换：GPS(WGS84) -> 高德地图(GCJ02)
+            const gcj02Result = wgs84ToGcj02(finalLat, finalLng);
+            const convertedLat = gcj02Result.latitude;
+            const convertedLng = gcj02Result.longitude;
+
+            const newLocation: [number, number] = [convertedLng, convertedLat];
 
             // 更新用户位置
             setUserLocation(newLocation);
+
+            // 输出最终定位结果
+            console.log('🎯 最终定位结果 (坐标已转换):');
+            console.log('  原始GPS坐标 (WGS84):', { latitude: finalLat, longitude: finalLng });
+            console.log('  转换后坐标 (GCJ02):', { latitude: convertedLat, longitude: convertedLng });
+            console.log('  坐标偏移距离:', `${gcj02Result.offset?.distance.toFixed(1)}米`);
+            console.log('  GPS精度:', finalAccuracy ? `${finalAccuracy.toFixed(1)}米` : '未知');
 
             // 移动地图到新位置
             if (mapRef.current) {
@@ -770,7 +796,7 @@ export function MapLocationPicker({
               mapRef.current.setZoom(18); // 提高缩放级别以显示更多细节
 
               // 添加或更新用户位置标记
-              addUserLocationMarker(finalLng, finalLat);
+              addUserLocationMarker(convertedLng, convertedLat);
 
               // 添加精度圆圈
               const accuracyRadius = finalPosition.coords.accuracy || 50;

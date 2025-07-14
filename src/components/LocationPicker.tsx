@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { MapPin, Loader, X, Navigation, Map } from 'lucide-react';
+import { MapPin, Loader, X, Navigation, Map, Target } from 'lucide-react';
 import { LocationInfo } from '../types';
 import { useThemeContext } from './ThemeProvider';
 import { LOCATION_CONFIG, isAmapConfigured, getAmapRegeoUrl } from '../config/location';
 import { MapLocationPicker } from './MapLocationPicker';
+import { wgs84ToGcj02, getHighAccuracyLocation } from '../utils/coordinateUtils';
 
 interface LocationPickerProps {
   location: LocationInfo | null;
@@ -38,17 +39,35 @@ export function LocationPicker({ location, onLocationChange, disabled }: Locatio
         });
       });
 
-      const { latitude, longitude } = position.coords;
-      
-      // 获取详细的位置信息
+      const { latitude, longitude, accuracy } = position.coords;
+
+      // 🔧 坐标系转换：GPS(WGS84) -> 高德地图(GCJ02)
+      const gcj02Result = wgs84ToGcj02(latitude, longitude);
+      const convertedLat = gcj02Result.latitude;
+      const convertedLng = gcj02Result.longitude;
+
+      // 输出调试信息
+      console.log('📍 GPS定位成功 (LocationPicker):');
+      console.log('  原始GPS坐标 (WGS84):', { latitude, longitude });
+      console.log('  转换后坐标 (GCJ02):', { latitude: convertedLat, longitude: convertedLng });
+      console.log('  坐标偏移距离:', `${gcj02Result.offset?.distance.toFixed(1)}米`);
+      console.log('  GPS精度:', accuracy ? `${accuracy.toFixed(1)}米` : '未知');
+
+      // 获取详细的位置信息 (使用转换后的坐标)
       try {
-        const locationInfo = await getDetailedLocationInfo(latitude, longitude);
+        const locationInfo = await getDetailedLocationInfo(convertedLat, convertedLng);
+        // 保存原始GPS坐标用于调试
+        (locationInfo as any).originalGPS = { latitude, longitude };
+        (locationInfo as any).coordinateOffset = gcj02Result.offset;
         onLocationChange(locationInfo);
       } catch (geocodeError) {
         console.error('地理编码失败，使用坐标作为位置名称:', geocodeError);
 
-        // 提供离线模式的基本位置信息
-        const offlineLocationInfo = createSmartOfflineLocation(latitude, longitude);
+        // 提供离线模式的基本位置信息 (使用转换后的坐标)
+        const offlineLocationInfo = createSmartOfflineLocation(convertedLat, convertedLng);
+        // 保存原始GPS坐标用于调试
+        (offlineLocationInfo as any).originalGPS = { latitude, longitude };
+        (offlineLocationInfo as any).coordinateOffset = gcj02Result.offset;
         onLocationChange(offlineLocationInfo);
 
         // 显示友好的成功信息，根据失败原因提供不同提示
@@ -76,6 +95,96 @@ export function LocationPicker({ location, onLocationChange, disabled }: Locatio
             errorMessage = '获取位置超时';
             break;
         }
+      }
+      setLocationError(errorMessage);
+    } finally {
+      setIsGettingLocation(false);
+    }
+  };
+
+  // 高精度定位功能
+  const getHighAccuracyLocationInfo = async () => {
+    if (isGettingLocation) return;
+
+    setIsGettingLocation(true);
+    setLocationError(null);
+
+    try {
+      console.log('🎯 开始高精度定位...');
+
+      // 使用高精度定位策略
+      const highAccuracyResult = await getHighAccuracyLocation({
+        maxAttempts: 3,
+        timeout: 12000,
+        acceptableAccuracy: 30, // 目标精度30米
+        targetSystem: 'GCJ02'
+      });
+
+      console.log('🎯 高精度定位完成:', highAccuracyResult);
+
+      // 获取详细的位置信息
+      try {
+        const locationInfo = await getDetailedLocationInfo(
+          highAccuracyResult.latitude,
+          highAccuracyResult.longitude
+        );
+
+        // 添加高精度定位的额外信息
+        (locationInfo as any).highAccuracy = {
+          accuracy: highAccuracyResult.accuracy,
+          confidence: highAccuracyResult.confidence,
+          attempts: highAccuracyResult.attempts,
+          coordinateOffset: highAccuracyResult.offset
+        };
+
+        onLocationChange(locationInfo);
+
+        // 显示成功信息
+        const successMessage = `✅ 高精度定位成功！精度: ${highAccuracyResult.accuracy?.toFixed(1)}米，置信度: ${highAccuracyResult.confidence}`;
+        setLocationError(successMessage);
+        setTimeout(() => setLocationError(null), 8000);
+
+      } catch (geocodeError) {
+        console.error('地理编码失败，使用坐标作为位置名称:', geocodeError);
+
+        // 提供离线模式的基本位置信息
+        const offlineLocationInfo = createSmartOfflineLocation(
+          highAccuracyResult.latitude,
+          highAccuracyResult.longitude
+        );
+
+        // 添加高精度定位信息
+        (offlineLocationInfo as any).highAccuracy = {
+          accuracy: highAccuracyResult.accuracy,
+          confidence: highAccuracyResult.confidence,
+          attempts: highAccuracyResult.attempts,
+          coordinateOffset: highAccuracyResult.offset
+        };
+
+        onLocationChange(offlineLocationInfo);
+
+        const message = `✅ 高精度定位完成！精度: ${highAccuracyResult.accuracy?.toFixed(1)}米，使用离线模式识别位置。`;
+        setLocationError(message);
+        setTimeout(() => setLocationError(null), 8000);
+      }
+
+    } catch (error) {
+      console.error('高精度定位失败:', error);
+      let errorMessage = '高精度定位失败';
+      if (error instanceof GeolocationPositionError) {
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorMessage = '位置访问被拒绝，请在浏览器设置中允许位置访问';
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorMessage = '位置信息不可用，请确保GPS信号良好';
+            break;
+          case error.TIMEOUT:
+            errorMessage = '高精度定位超时，请在信号更好的地方重试';
+            break;
+        }
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
       }
       setLocationError(errorMessage);
     } finally {
@@ -681,6 +790,52 @@ export function LocationPicker({ location, onLocationChange, disabled }: Locatio
 
 
 
+          {/* 高精度定位信息 */}
+          {(location as any)?.highAccuracy && (
+            <div
+              className="p-3 rounded-lg border"
+              style={{
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.primary,
+                borderStyle: 'dashed'
+              }}
+            >
+              <div className="text-xs font-medium mb-2" style={{ color: theme.colors.primary }}>
+                🎯 高精度定位信息
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <span className="opacity-60" style={{ color: theme.colors.textSecondary }}>精度: </span>
+                  <span style={{ color: theme.colors.text }}>
+                    {(location as any).highAccuracy.accuracy?.toFixed(1)}米
+                  </span>
+                </div>
+                <div>
+                  <span className="opacity-60" style={{ color: theme.colors.textSecondary }}>置信度: </span>
+                  <span style={{
+                    color: (location as any).highAccuracy.confidence === 'high' ? '#28a745' :
+                           (location as any).highAccuracy.confidence === 'medium' ? '#ffc107' : '#dc3545'
+                  }}>
+                    {(location as any).highAccuracy.confidence === 'high' ? '高' :
+                     (location as any).highAccuracy.confidence === 'medium' ? '中' : '低'}
+                  </span>
+                </div>
+                <div>
+                  <span className="opacity-60" style={{ color: theme.colors.textSecondary }}>定位次数: </span>
+                  <span style={{ color: theme.colors.text }}>
+                    {(location as any).highAccuracy.attempts}次
+                  </span>
+                </div>
+                <div>
+                  <span className="opacity-60" style={{ color: theme.colors.textSecondary }}>坐标偏移: </span>
+                  <span style={{ color: theme.colors.text }}>
+                    {(location as any).highAccuracy.coordinateOffset?.distance?.toFixed(1)}米
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* 详细地址信息 */}
           {location.details && (
             <div
@@ -760,7 +915,27 @@ export function LocationPicker({ location, onLocationChange, disabled }: Locatio
             ) : (
               <Navigation className="w-4 h-4" />
             )}
-            {isGettingLocation ? '获取中...' : '获取当前位置'}
+            {isGettingLocation ? '获取中...' : '快速定位'}
+          </button>
+
+          <button
+            type="button"
+            onClick={getHighAccuracyLocationInfo}
+            disabled={isGettingLocation || disabled}
+            className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium border transition-all duration-200 hover:opacity-80 disabled:opacity-50"
+            style={{
+              borderColor: theme.colors.primary,
+              color: theme.colors.primary,
+              backgroundColor: theme.colors.surface
+            }}
+            title="多次定位取平均值，提高精度"
+          >
+            {isGettingLocation ? (
+              <Loader className="w-4 h-4 animate-spin" />
+            ) : (
+              <Target className="w-4 h-4" />
+            )}
+            {isGettingLocation ? '高精度定位中...' : '高精度定位'}
           </button>
 
           <button
