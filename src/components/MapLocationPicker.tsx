@@ -747,56 +747,143 @@ export function MapLocationPicker({
     }
   };
 
-  // 搜索地址
+  // 搜索地址（增强版）
   const handleSearch = () => {
-    if (!searchQuery.trim() || !placeSearchRef.current) return;
+    try {
+      console.log('🔍 handleSearch 被调用');
 
-    setIsSearching(true);
-    setSearchResults([]);
-
-    placeSearchRef.current.search(searchQuery, (status: string, result: any) => {
-      setIsSearching(false);
-
-      if (status === 'complete' && result.poiList && result.poiList.pois) {
-        const pois = result.poiList.pois.slice(0, 5); // 只显示前5个结果
-        setSearchResults(pois);
-        console.log('🔍 搜索结果:', pois);
-      } else {
-        console.log('🔍 搜索失败或无结果:', status, result);
-        setSearchResults([]);
+      if (!searchQuery.trim()) {
+        console.log('🔍 搜索查询为空');
+        return;
       }
-    });
+
+      if (!placeSearchRef.current) {
+        console.error('🔍 搜索服务未初始化');
+        setMapError('搜索服务未准备好');
+        return;
+      }
+
+      // 移动端：先失焦输入框
+      if (isMobile) {
+        const activeElement = document.activeElement as HTMLElement;
+        if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
+          console.log('🔍 移动端搜索：先失焦输入框');
+          try {
+            activeElement.blur();
+            setHasInputFocus(false);
+          } catch (blurError) {
+            console.error('🔍 输入框失焦失败:', blurError);
+          }
+        }
+      }
+
+      setIsSearching(true);
+      setSearchResults([]);
+      setMapError(null);
+
+      console.log('🔍 开始搜索:', searchQuery);
+
+      placeSearchRef.current.search(searchQuery, (status: string, result: any) => {
+        try {
+          console.log('🔍 搜索回调执行:', { status, result });
+          setIsSearching(false);
+
+          if (status === 'complete' && result.poiList && result.poiList.pois) {
+            const pois = result.poiList.pois.slice(0, 5); // 只显示前5个结果
+            setSearchResults(pois);
+            console.log('🔍 搜索成功，结果数量:', pois.length);
+          } else {
+            console.log('🔍 搜索失败或无结果:', status, result);
+            setSearchResults([]);
+            if (status === 'error') {
+              setMapError('搜索失败，请重试');
+            }
+          }
+        } catch (callbackError) {
+          console.error('🔍 搜索回调处理异常:', callbackError);
+          setIsSearching(false);
+          setSearchResults([]);
+          setMapError('搜索结果处理失败');
+        }
+      });
+    } catch (error) {
+      console.error('🔍 handleSearch 函数异常:', error);
+      setIsSearching(false);
+      setSearchResults([]);
+      setMapError('搜索功能异常');
+    }
   };
 
-  // 选择搜索结果
+  // 选择搜索结果（增强版）
   const selectSearchResult = (poi: any) => {
-    const lng = poi.location.lng;
-    const lat = poi.location.lat;
+    try {
+      console.log('🔍 选择搜索结果:', poi);
 
-    // 移动地图到该位置
-    mapRef.current.setCenter([lng, lat]);
-    mapRef.current.setZoom(17);
-
-    // 添加标记
-    addMarker(lng, lat);
-
-    // 创建位置信息
-    const locationInfo: LocationInfo = {
-      name: poi.name,
-      latitude: lat,
-      longitude: lng,
-      address: poi.address || poi.name,
-      details: {
-        building: poi.name,
-        city: poi.cityname,
-        suburb: poi.adname,
-        country: '中国'
+      if (!poi || !poi.location) {
+        console.error('🔍 无效的POI数据');
+        setMapError('选择的位置数据无效');
+        return;
       }
-    };
 
-    setSelectedLocation(locationInfo);
-    setSearchResults([]);
-    setSearchQuery('');
+      const lng = poi.location.lng;
+      const lat = poi.location.lat;
+
+      if (!lng || !lat) {
+        console.error('🔍 无效的坐标数据');
+        setMapError('位置坐标无效');
+        return;
+      }
+
+      if (!mapRef.current) {
+        console.error('🔍 地图未初始化');
+        setMapError('地图未准备好');
+        return;
+      }
+
+      // 移动地图到该位置
+      try {
+        mapRef.current.setCenter([lng, lat]);
+        mapRef.current.setZoom(isMobile ? 16 : 17);
+        console.log('🔍 地图移动成功');
+      } catch (mapError) {
+        console.error('🔍 地图移动失败:', mapError);
+        setMapError('地图移动失败');
+        return;
+      }
+
+      // 添加标记
+      try {
+        addMarker(lng, lat);
+        console.log('🔍 标记添加成功');
+      } catch (markerError) {
+        console.error('🔍 标记添加失败:', markerError);
+        // 标记失败不影响位置选择
+      }
+
+      // 创建位置信息
+      const locationInfo: LocationInfo = {
+        name: poi.name || '选中位置',
+        latitude: lat,
+        longitude: lng,
+        address: poi.address || poi.name || '未知地址',
+        details: {
+          building: poi.name,
+          city: poi.cityname,
+          suburb: poi.adname,
+          country: '中国'
+        }
+      };
+
+      setSelectedLocation(locationInfo);
+      setSearchResults([]);
+      setSearchQuery('');
+      setMapError(null);
+
+      console.log('🔍 位置选择完成:', locationInfo);
+    } catch (error) {
+      console.error('🔍 selectSearchResult 函数异常:', error);
+      setMapError('选择位置失败');
+    }
   };
 
   // 定位到用户位置（增强版）
@@ -1268,7 +1355,17 @@ export function MapLocationPicker({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                onKeyPress={(e) => {
+                  try {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      console.log('🔍 回车键搜索');
+                      handleSearch();
+                    }
+                  } catch (error) {
+                    handleError(error, '回车键搜索');
+                  }
+                }}
                 onFocus={() => {
                   console.log('🗺️ 搜索框获得焦点');
                   setHasInputFocus(true);
@@ -1289,7 +1386,16 @@ export function MapLocationPicker({
               <Search className="absolute right-3 top-2.5 w-4 h-4" style={{ color: theme.colors.textSecondary }} />
             </div>
             <button
-              onClick={handleSearch}
+              onClick={(e) => {
+                try {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  console.log('🔍 搜索按钮被点击');
+                  handleSearch();
+                } catch (error) {
+                  handleError(error, '搜索按钮点击');
+                }
+              }}
               disabled={!searchQuery.trim() || isSearching || !isMapLoaded}
               className={`rounded-md font-medium transition-colors disabled:opacity-50 ${
                 isMobile ? 'px-3 py-2 text-xs' : 'px-4 py-2 text-sm'
@@ -1365,7 +1471,16 @@ export function MapLocationPicker({
               {searchResults.map((poi, index) => (
                 <div
                   key={index}
-                  onClick={() => selectSearchResult(poi)}
+                  onClick={(e) => {
+                    try {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      console.log('🔍 搜索结果被点击:', poi.name);
+                      selectSearchResult(poi);
+                    } catch (error) {
+                      handleError(error, '搜索结果点击');
+                    }
+                  }}
                   className="p-2 hover:bg-gray-50 cursor-pointer rounded text-sm border-b last:border-b-0"
                   style={{ borderColor: theme.colors.border }}
                 >
