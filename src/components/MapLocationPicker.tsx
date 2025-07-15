@@ -47,8 +47,77 @@ export function MapLocationPicker({
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isLocating, setIsLocating] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [mapError, setMapError] = useState<string | null>(null);
+  const [lastLocationTime, setLastLocationTime] = useState<number>(0);
+  const [hasInputFocus, setHasInputFocus] = useState(false);
+
+  // 全局错误处理
+  const handleError = (error: any, context: string) => {
+    console.error(`🗺️ ${context} 错误:`, error);
+    setIsLocating(false);
+    setIsLoadingMap(false);
+    setMapError(`${context}失败: ${error.message || '未知错误'}`);
+  };
+
+  // 简单定位方案（备用）
+  const simpleLocation = () => {
+    if (!navigator.geolocation) {
+      setMapError('浏览器不支持定位');
+      return;
+    }
+
+    setIsLocating(true);
+    setMapError(null);
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        try {
+          const { latitude, longitude } = position.coords;
+          const gcj02Result = wgs84ToGcj02(latitude, longitude);
+          const newLocation: [number, number] = [gcj02Result.longitude, gcj02Result.latitude];
+
+          setUserLocation(newLocation);
+
+          if (mapRef.current) {
+            mapRef.current.setCenter(newLocation);
+            mapRef.current.setZoom(16);
+            addUserLocationMarker(gcj02Result.longitude, gcj02Result.latitude);
+          }
+
+          setIsLocating(false);
+          console.log('🗺️ 简单定位成功');
+        } catch (error) {
+          console.error('🗺️ 简单定位处理失败:', error);
+          setIsLocating(false);
+          setMapError('定位处理失败');
+        }
+      },
+      (error) => {
+        console.error('🗺️ 简单定位失败:', error);
+        setIsLocating(false);
+        setMapError('定位失败');
+      },
+      {
+        timeout: 5000,
+        enableHighAccuracy: false,
+        maximumAge: 300000 // 5分钟缓存
+      }
+    );
+  };
 
   console.log('🗺️ MapLocationPicker 渲染:', { isOpen });
+
+  // 检测移动端
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // 键盘快捷键支持（已禁用，因为可能导致地图问题）
   // useEffect(() => {
@@ -92,44 +161,66 @@ export function MapLocationPicker({
     }
 
     // 尝试获取用户当前位置
-    if (navigator.geolocation) {
+    if (navigator.geolocation && !isLoadingMap) {
       setIsLoadingMap(true);
+      setMapError(null);
+
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          const { latitude, longitude, accuracy } = position.coords;
+          try {
+            const { latitude, longitude, accuracy } = position.coords;
 
-          // 🔧 坐标系转换：GPS(WGS84) -> 高德地图(GCJ02)
-          const gcj02Result = wgs84ToGcj02(latitude, longitude);
-          const convertedLat = gcj02Result.latitude;
-          const convertedLng = gcj02Result.longitude;
+            // 🔧 坐标系转换：GPS(WGS84) -> 高德地图(GCJ02)
+            const gcj02Result = wgs84ToGcj02(latitude, longitude);
+            const convertedLat = gcj02Result.latitude;
+            const convertedLng = gcj02Result.longitude;
 
-          const newLocation: [number, number] = [convertedLng, convertedLat];
-          setMapCenter(newLocation);
-          setUserLocation(newLocation);
+            const newLocation: [number, number] = [convertedLng, convertedLat];
+            setMapCenter(newLocation);
+            setUserLocation(newLocation);
 
-          // 输出调试信息
-          console.log('🗺️ GPS定位成功 (坐标已转换):');
-          console.log('  原始GPS坐标 (WGS84):', { latitude, longitude });
-          console.log('  转换后坐标 (GCJ02):', { latitude: convertedLat, longitude: convertedLng });
-          console.log('  坐标偏移距离:', `${gcj02Result.offset?.distance.toFixed(1)}米`);
-          console.log('  GPS精度:', accuracy ? `${accuracy.toFixed(1)}米` : '未知');
+            // 输出调试信息
+            console.log('🗺️ GPS定位成功 (坐标已转换):');
+            console.log('  原始GPS坐标 (WGS84):', { latitude, longitude });
+            console.log('  转换后坐标 (GCJ02):', { latitude: convertedLat, longitude: convertedLng });
+            console.log('  坐标偏移距离:', `${gcj02Result.offset?.distance.toFixed(1)}米`);
+            console.log('  GPS精度:', accuracy ? `${accuracy.toFixed(1)}米` : '未知');
 
-          setIsLoadingMap(false);
+            setIsLoadingMap(false);
 
-          // 如果地图已经加载，立即添加用户位置标记
-          if (mapRef.current && isMapLoaded) {
-            addUserLocationMarker(convertedLng, convertedLat);
+            // 如果地图已经加载，立即添加用户位置标记
+            if (mapRef.current && isMapLoaded) {
+              addUserLocationMarker(convertedLng, convertedLat);
+            }
+          } catch (error) {
+            console.error('🗺️ 处理定位结果时出错:', error);
+            setIsLoadingMap(false);
+            setMapError('定位处理失败');
           }
         },
         (error) => {
           console.log('🗺️ 无法获取用户位置，使用默认位置:', error.message);
           setIsLoadingMap(false);
+
+          let errorMessage = '定位失败';
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              errorMessage = '位置权限被拒绝';
+              break;
+            case error.POSITION_UNAVAILABLE:
+              errorMessage = '位置信息不可用';
+              break;
+            case error.TIMEOUT:
+              errorMessage = '定位超时';
+              break;
+          }
+          setMapError(errorMessage);
           // 保持默认位置
         },
         {
-          timeout: 10000, // 增加超时时间到10秒
+          timeout: 8000, // 减少超时时间避免长时间等待
           enableHighAccuracy: true, // 启用高精度定位
-          maximumAge: 0 // 不使用缓存，每次都获取最新位置
+          maximumAge: 30000 // 允许使用30秒内的缓存位置
         }
       );
     }
@@ -170,19 +261,32 @@ export function MapLocationPicker({
     };
 
     const initMap = () => {
-      if (!mapContainerRef.current || !window.AMap) return;
+      if (!mapContainerRef.current || !window.AMap) {
+        console.error('🗺️ 地图容器或AMap API未准备好');
+        setMapError('地图初始化失败：容器未准备好');
+        setIsLoadingMap(false);
+        return;
+      }
 
       try {
+        console.log('🗺️ 开始初始化地图...');
+        setMapError(null);
+
         // 创建地图实例
         const map = new window.AMap.Map(mapContainerRef.current, {
-          zoom: 16,
+          zoom: isMobile ? 15 : 16, // 移动端使用较小的缩放级别
           center: mapCenter,
           mapStyle: theme.mode === 'dark' ? 'amap://styles/dark' : 'amap://styles/normal',
           resizeEnable: true,
           rotateEnable: false,
           pitchEnable: false,
           zoomEnable: true,
-          dragEnable: true
+          dragEnable: true,
+          // 移动端优化
+          touchZoom: isMobile,
+          doubleClickZoom: !isMobile,
+          scrollWheel: !isMobile,
+          keyboardEnable: !isMobile
         });
 
         mapRef.current = map;
@@ -192,32 +296,57 @@ export function MapLocationPicker({
           console.log('🗺️ 地图加载完成');
           setIsMapLoaded(true);
           setIsLoadingMap(false);
+          setMapError(null);
 
           // 如果有初始位置，添加选择标记
           if (initialLocation) {
-            addMarker(initialLocation.lng, initialLocation.lat);
+            try {
+              addMarker(initialLocation.lng, initialLocation.lat);
+            } catch (error) {
+              console.error('🗺️ 添加初始位置标记失败:', error);
+            }
           }
+
+          // 如果有用户位置，添加用户位置标记
+          if (userLocation) {
+            try {
+              addUserLocationMarker(userLocation[0], userLocation[1]);
+            } catch (error) {
+              console.error('🗺️ 添加用户位置标记失败:', error);
+            }
+          }
+        });
+
+        // 地图加载错误处理
+        map.on('error', (error: any) => {
+          console.error('🗺️ 地图加载错误:', error);
+          setMapError('地图加载失败');
+          setIsLoadingMap(false);
         });
 
         // 添加点击事件
         map.on('click', handleMapClick);
 
         // 初始化地点搜索服务
-        const placeSearch = new window.AMap.PlaceSearch({
-          pageSize: 10,
-          pageIndex: 1,
-          city: '全国',
-          map: map,
-          panel: false
-        });
-        placeSearchRef.current = placeSearch;
+        try {
+          const placeSearch = new window.AMap.PlaceSearch({
+            pageSize: 10,
+            pageIndex: 1,
+            city: '全国',
+            map: map,
+            panel: false
+          });
+          placeSearchRef.current = placeSearch;
+        } catch (error) {
+          console.error('🗺️ 搜索服务初始化失败:', error);
+        }
 
         // 添加定位控件（可选，提供额外的定位功能）
         try {
           const geolocation = new window.AMap.Geolocation({
             enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 0,
+            timeout: 8000,
+            maximumAge: 30000,
             convert: true,
             showButton: false, // 不显示按钮，我们有自己的按钮
             showMarker: false, // 不显示默认标记，我们有自己的标记
@@ -232,7 +361,8 @@ export function MapLocationPicker({
         }
 
       } catch (error) {
-        console.error('地图初始化失败:', error);
+        console.error('🗺️ 地图初始化失败:', error);
+        setMapError('地图初始化失败');
         setIsLoadingMap(false);
       }
     };
@@ -671,14 +801,104 @@ export function MapLocationPicker({
 
   // 定位到用户位置（增强版）
   const locateUser = () => {
-    // 增强安全检查
-    if (!mapRef.current || !isMapLoaded) {
-      console.warn('🗺️ 地图未完全加载，无法定位');
-      return;
-    }
+    try {
+      console.log('🗺️ locateUser 被调用');
 
-    if (isLocating) {
-      console.warn('🗺️ 正在定位中，请稍候');
+      // 移动端：如果输入框有焦点，使用简单定位
+      if (isMobile && hasInputFocus) {
+        console.log('🗺️ 移动端输入框有焦点，使用简单定位');
+        // 先失焦
+        const activeElement = document.activeElement as HTMLElement;
+        if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
+          activeElement.blur();
+        }
+        setHasInputFocus(false);
+
+        // 延迟执行简单定位
+        setTimeout(() => {
+          simpleLocation();
+        }, 300);
+        return;
+      }
+
+      // 防抖：避免快速重复点击
+      const now = Date.now();
+      if (now - lastLocationTime < 2000) { // 2秒内不允许重复定位
+        console.log('🗺️ 定位请求过于频繁，请稍候');
+        return;
+      }
+      setLastLocationTime(now);
+
+      // 移动端：检查并失焦输入框
+      if (isMobile) {
+        const activeElement = document.activeElement as HTMLElement;
+        console.log('🗺️ 当前焦点元素:', activeElement?.tagName, (activeElement as any)?.type);
+
+        if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
+          console.log('🗺️ 检测到输入框焦点，先失焦再定位');
+
+          try {
+            activeElement.blur();
+            console.log('🗺️ 输入框失焦成功');
+            setHasInputFocus(false);
+          } catch (blurError) {
+            console.error('🗺️ 输入框失焦失败:', blurError);
+          }
+
+          // 等待键盘收起后再执行定位
+          setTimeout(() => {
+            try {
+              console.log('🗺️ 延迟执行定位');
+              performLocation();
+            } catch (delayError) {
+              console.error('🗺️ 延迟定位执行失败:', delayError);
+              setIsLocating(false);
+              setMapError('定位执行失败');
+            }
+          }, 800); // 进一步增加延迟时间
+          return;
+        }
+      }
+
+      console.log('🗺️ 直接执行定位');
+
+      // 移动端使用简单定位，桌面端使用复杂定位
+      if (isMobile) {
+        console.log('🗺️ 移动端使用简单定位方案');
+        simpleLocation();
+      } else {
+        console.log('🗺️ 桌面端使用复杂定位方案');
+        performLocation();
+      }
+    } catch (error) {
+      console.error('🗺️ locateUser 函数异常:', error);
+      setIsLocating(false);
+      setMapError('定位功能异常');
+    }
+  };
+
+  // 执行定位的核心逻辑
+  const performLocation = () => {
+    try {
+      console.log('🗺️ performLocation 开始执行');
+
+      // 增强安全检查
+      if (!mapRef.current || !isMapLoaded) {
+        console.warn('🗺️ 地图未完全加载，无法定位');
+        setMapError('地图未加载完成');
+        return;
+      }
+
+      if (isLocating) {
+        console.warn('🗺️ 正在定位中，请稍候');
+        return;
+      }
+
+      console.log('🗺️ 安全检查通过，开始定位流程');
+    } catch (error) {
+      console.error('🗺️ performLocation 初始检查异常:', error);
+      setIsLocating(false);
+      setMapError('定位初始化失败');
       return;
     }
 
@@ -686,14 +906,14 @@ export function MapLocationPicker({
     if (userLocation) {
       try {
         mapRef.current.setCenter(userLocation);
-        mapRef.current.setZoom(17);
+        mapRef.current.setZoom(isMobile ? 16 : 17);
 
         // 添加一个临时的脉冲效果来突出显示用户位置
         if (userMarkerRef.current) {
           // 创建一个临时的脉冲圆圈
           const pulseCircle = new window.AMap.Circle({
             center: userLocation,
-            radius: 50,
+            radius: isMobile ? 30 : 50,
             strokeColor: '#1890ff',
             strokeWeight: 2,
             fillColor: '#1890ff',
@@ -728,164 +948,193 @@ export function MapLocationPicker({
 
   // 获取当前位置并更新地图（高精度版本）
   const getCurrentLocationAndUpdate = () => {
+    // 防止重复调用
+    if (isLocating) {
+      console.warn('🗺️ 已在定位中，忽略重复请求');
+      return;
+    }
+
     if (!navigator.geolocation) {
-      alert('您的浏览器不支持地理定位功能');
+      const message = '您的浏览器不支持地理定位功能';
+      if (isMobile) {
+        setMapError(message);
+      } else {
+        alert(message);
+      }
       return;
     }
 
     if (!mapRef.current || !isMapLoaded) {
       console.error('🗺️ 地图未准备好，无法定位');
-      alert('地图还在加载中，请稍候再试');
+      const message = '地图还在加载中，请稍候再试';
+      if (isMobile) {
+        setMapError(message);
+      } else {
+        alert(message);
+      }
       return;
     }
 
-    if (isLocating) {
-      console.warn('🗺️ 已在定位中');
-      return;
-    }
-
+    console.log('🗺️ 开始获取用户位置...');
     setIsLocating(true);
+    setMapError(null);
 
-    // 尝试多次定位以提高精度
-    let bestPosition: GeolocationPosition | null = null;
-    let attempts = 0;
-    const maxAttempts = 3;
+    // 使用AbortController来控制定位请求
+    const abortController = new AbortController();
 
-    const tryGetPosition = () => {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
+    // 设置超时清理
+    const timeoutId = setTimeout(() => {
+      abortController.abort();
+      setIsLocating(false);
+      const message = '定位超时，请重试';
+      if (isMobile) {
+        setMapError(message);
+      } else {
+        alert(message);
+      }
+    }, 15000); // 15秒总超时
+
+    // 简化定位逻辑，避免多次尝试导致的问题
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        // 清理超时
+        clearTimeout(timeoutId);
+
+        if (abortController.signal.aborted) {
+          console.log('🗺️ 定位请求已被取消');
+          return;
+        }
+
+        try {
           const { latitude, longitude, accuracy } = position.coords;
-          console.log(`🗺️ 定位尝试 ${attempts + 1}/${maxAttempts}:`, {
+          console.log('🗺️ 定位成功:', {
             latitude,
             longitude,
             accuracy: accuracy ? `${accuracy.toFixed(1)}米` : '未知'
           });
 
-          // 如果这是第一次定位，或者精度更好，就使用这个位置
-          if (!bestPosition || (accuracy && accuracy < (bestPosition.coords.accuracy || Infinity))) {
-            bestPosition = position;
-          }
+          // 🔧 坐标系转换：GPS(WGS84) -> 高德地图(GCJ02)
+          const gcj02Result = wgs84ToGcj02(latitude, longitude);
+          const convertedLat = gcj02Result.latitude;
+          const convertedLng = gcj02Result.longitude;
 
-          attempts++;
+          const newLocation: [number, number] = [convertedLng, convertedLat];
 
-          // 如果达到最大尝试次数，或者精度已经很好了，就使用最佳位置
-          if (attempts >= maxAttempts || (accuracy && accuracy <= 20)) {
-            const finalPosition = bestPosition!;
-            const { latitude: finalLat, longitude: finalLng, accuracy: finalAccuracy } = finalPosition.coords;
+          // 更新用户位置
+          setUserLocation(newLocation);
 
-            // 🔧 坐标系转换：GPS(WGS84) -> 高德地图(GCJ02)
-            const gcj02Result = wgs84ToGcj02(finalLat, finalLng);
-            const convertedLat = gcj02Result.latitude;
-            const convertedLng = gcj02Result.longitude;
+          // 输出定位结果
+          console.log('🎯 定位结果 (坐标已转换):');
+          console.log('  原始GPS坐标 (WGS84):', { latitude, longitude });
+          console.log('  转换后坐标 (GCJ02):', { latitude: convertedLat, longitude: convertedLng });
+          console.log('  坐标偏移距离:', `${gcj02Result.offset?.distance.toFixed(1)}米`);
+          console.log('  GPS精度:', accuracy ? `${accuracy.toFixed(1)}米` : '未知');
 
-            const newLocation: [number, number] = [convertedLng, convertedLat];
+          // 移动地图到新位置
+          if (mapRef.current && !abortController.signal.aborted) {
+            mapRef.current.setCenter(newLocation);
+            mapRef.current.setZoom(isMobile ? 17 : 18); // 移动端使用稍低的缩放级别
 
-            // 更新用户位置
-            setUserLocation(newLocation);
+            // 添加或更新用户位置标记
+            addUserLocationMarker(convertedLng, convertedLat);
 
-            // 输出最终定位结果
-            console.log('🎯 最终定位结果 (坐标已转换):');
-            console.log('  原始GPS坐标 (WGS84):', { latitude: finalLat, longitude: finalLng });
-            console.log('  转换后坐标 (GCJ02):', { latitude: convertedLat, longitude: convertedLng });
-            console.log('  坐标偏移距离:', `${gcj02Result.offset?.distance.toFixed(1)}米`);
-            console.log('  GPS精度:', finalAccuracy ? `${finalAccuracy.toFixed(1)}米` : '未知');
+            // 添加精度圆圈
+            const accuracyRadius = accuracy || 50;
+            const accuracyCircle = new window.AMap.Circle({
+              center: newLocation,
+              radius: accuracyRadius,
+              strokeColor: '#1890ff',
+              strokeWeight: 1,
+              fillColor: '#1890ff',
+              fillOpacity: 0.1
+            });
 
-            // 移动地图到新位置
-            if (mapRef.current) {
-              mapRef.current.setCenter(newLocation);
-              mapRef.current.setZoom(18); // 提高缩放级别以显示更多细节
+            mapRef.current.add(accuracyCircle);
 
-              // 添加或更新用户位置标记
-              addUserLocationMarker(convertedLng, convertedLat);
+            // 添加脉冲效果
+            const pulseCircle = new window.AMap.Circle({
+              center: newLocation,
+              radius: isMobile ? 20 : 30,
+              strokeColor: '#1890ff',
+              strokeWeight: 2,
+              fillColor: '#1890ff',
+              fillOpacity: 0.3
+            });
 
-              // 添加精度圆圈
-              const accuracyRadius = finalPosition.coords.accuracy || 50;
-              const accuracyCircle = new window.AMap.Circle({
-                center: newLocation,
-                radius: accuracyRadius,
-                strokeColor: '#1890ff',
-                strokeWeight: 1,
-                fillColor: '#1890ff',
-                fillOpacity: 0.1
-              });
+            mapRef.current.add(pulseCircle);
 
-              mapRef.current.add(accuracyCircle);
-
-              // 添加脉冲效果
-              const pulseCircle = new window.AMap.Circle({
-                center: newLocation,
-                radius: 30,
-                strokeColor: '#1890ff',
-                strokeWeight: 2,
-                fillColor: '#1890ff',
-                fillOpacity: 0.3
-              });
-
-              mapRef.current.add(pulseCircle);
-
-              // 移除效果
-              setTimeout(() => {
-                if (mapRef.current) {
+            // 移除效果
+            setTimeout(() => {
+              if (mapRef.current && !abortController.signal.aborted) {
+                try {
                   mapRef.current.remove(pulseCircle);
                   // 精度圆圈保留5秒后移除
                   setTimeout(() => {
-                    if (mapRef.current) {
-                      mapRef.current.remove(accuracyCircle);
+                    if (mapRef.current && !abortController.signal.aborted) {
+                      try {
+                        mapRef.current.remove(accuracyCircle);
+                      } catch (error) {
+                        console.warn('🗺️ 移除精度圆圈失败:', error);
+                      }
                     }
                   }, 5000);
+                } catch (error) {
+                  console.warn('🗺️ 移除脉冲效果失败:', error);
                 }
-              }, 2000);
-            }
-
-            setIsLocating(false);
-            console.log('🗺️ 最终定位结果:', {
-              longitude: finalLng,
-              latitude: finalLat,
-              accuracy: finalPosition.coords.accuracy ? `${finalPosition.coords.accuracy.toFixed(1)}米` : '未知',
-              attempts: attempts
-            });
-          } else {
-            // 继续尝试获取更精确的位置
-            setTimeout(tryGetPosition, 1000);
+              }
+            }, 2000);
           }
-        },
-        (error) => {
-          console.error(`🗺️ 定位尝试 ${attempts + 1} 失败:`, error);
 
-          attempts++;
-
-          if (attempts >= maxAttempts) {
-            setIsLocating(false);
-
-            let errorMessage = '定位失败';
-            switch (error.code) {
-              case error.PERMISSION_DENIED:
-                errorMessage = '定位权限被拒绝，请在浏览器设置中允许位置访问';
-                break;
-              case error.POSITION_UNAVAILABLE:
-                errorMessage = '位置信息不可用，可能是网络问题或GPS信号弱';
-                break;
-              case error.TIMEOUT:
-                errorMessage = '定位请求超时，请检查网络连接或移动到信号更好的地方';
-                break;
-            }
-
-            alert(errorMessage + '\n\n提示：\n1. 确保允许浏览器访问位置\n2. 在户外或窗边信号更好\n3. 关闭省电模式可提高精度');
-          } else {
-            // 继续尝试
-            setTimeout(tryGetPosition, 2000);
-          }
-        },
-        {
-          enableHighAccuracy: true, // 启用高精度定位
-          timeout: 8000, // 单次尝试超时时间
-          maximumAge: 0 // 不使用缓存位置，强制获取最新位置
+          setIsLocating(false);
+          console.log('🗺️ 定位完成:', {
+            longitude: convertedLng,
+            latitude: convertedLat,
+            accuracy: accuracy ? `${accuracy.toFixed(1)}米` : '未知'
+          });
+        } catch (error) {
+          console.error('🗺️ 处理定位结果时出错:', error);
+          clearTimeout(timeoutId);
+          setIsLocating(false);
+          setMapError('定位处理失败');
         }
-      );
-    };
+      },
+      (error) => {
+        // 清理超时
+        clearTimeout(timeoutId);
 
-    // 开始第一次尝试
-    tryGetPosition();
+        if (abortController.signal.aborted) {
+          console.log('🗺️ 定位请求已被取消');
+          return;
+        }
+
+        console.error('🗺️ 定位失败:', error);
+        setIsLocating(false);
+
+        let errorMessage = '定位失败';
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorMessage = '定位权限被拒绝，请在浏览器设置中允许位置访问';
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorMessage = '位置信息不可用，可能是网络问题或GPS信号弱';
+            break;
+          case error.TIMEOUT:
+            errorMessage = '定位请求超时，请检查网络连接或移动到信号更好的地方';
+            break;
+        }
+
+        if (isMobile) {
+          setMapError(errorMessage);
+        } else {
+          alert(errorMessage + '\n\n提示：\n1. 确保允许浏览器访问位置\n2. 在户外或窗边信号更好\n3. 关闭省电模式可提高精度');
+        }
+      },
+      {
+        enableHighAccuracy: true, // 启用高精度定位
+        timeout: 10000, // 单次尝试超时时间
+        maximumAge: 60000 // 允许使用1分钟内的缓存位置，减少重复定位
+      }
+    );
   };
 
   // 智能选择位置名称
@@ -953,23 +1202,38 @@ export function MapLocationPicker({
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div
-        className="bg-white rounded-lg shadow-xl w-full max-w-4xl h-[80vh] flex flex-col"
+        className={`bg-white rounded-lg shadow-xl w-full flex flex-col ${
+          isMobile
+            ? 'h-[95vh] max-w-full mx-2'
+            : 'max-w-4xl h-[80vh]'
+        }`}
         style={{ backgroundColor: theme.colors.background }}
       >
         {/* 头部 */}
         <div
-          className="flex items-center justify-between p-4 border-b"
+          className={`flex items-center justify-between border-b ${isMobile ? 'p-3' : 'p-4'}`}
           style={{ borderColor: theme.colors.border }}
         >
-          <h3 className="text-lg font-semibold" style={{ color: theme.colors.text }}>
+          <h3 className={`font-semibold ${isMobile ? 'text-base' : 'text-lg'}`} style={{ color: theme.colors.text }}>
             📍 选择位置
           </h3>
           <div className="flex items-center gap-2">
             {/* 定位按钮 - 始终显示 */}
             <button
-              onClick={locateUser}
-              disabled={isLocating}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors hover:opacity-80 disabled:opacity-50"
+              onClick={(e) => {
+                try {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  console.log('🗺️ 定位按钮被点击');
+                  locateUser();
+                } catch (error) {
+                  handleError(error, '定位按钮点击');
+                }
+              }}
+              disabled={isLocating || !isMapLoaded}
+              className={`flex items-center gap-1 rounded-md font-medium transition-colors hover:opacity-80 disabled:opacity-50 ${
+                isMobile ? 'px-2 py-1.5 text-xs' : 'px-3 py-1.5 text-sm'
+              }`}
               style={{
                 backgroundColor: userLocation ? theme.colors.primary : `${theme.colors.primary}20`,
                 color: userLocation ? 'white' : theme.colors.primary,
@@ -982,7 +1246,7 @@ export function MapLocationPicker({
               ) : (
                 <Navigation className="w-4 h-4" />
               )}
-              <span className="hidden sm:inline">
+              <span className={isMobile ? 'hidden' : 'hidden sm:inline'}>
                 {isLocating ? '定位中...' : userLocation ? '我的位置' : '获取位置'}
               </span>
             </button>
@@ -991,13 +1255,13 @@ export function MapLocationPicker({
               onClick={onClose}
               className="p-2 rounded-full hover:bg-gray-100 transition-colors"
             >
-              <X className="w-5 h-5" style={{ color: theme.colors.text }} />
+              <X className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} style={{ color: theme.colors.text }} />
             </button>
           </div>
         </div>
 
         {/* 搜索栏 */}
-        <div className="p-4 border-b" style={{ borderColor: theme.colors.border }}>
+        <div className={`border-b ${isMobile ? 'p-3' : 'p-4'}`} style={{ borderColor: theme.colors.border }}>
           <div className="flex gap-2">
             <div className="flex-1 relative">
               <input
@@ -1005,8 +1269,16 @@ export function MapLocationPicker({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                placeholder="搜索地址、建筑物或地标..."
-                className="w-full px-3 py-2 pr-10 rounded-md border text-sm"
+                onFocus={() => {
+                  console.log('🗺️ 搜索框获得焦点');
+                  setHasInputFocus(true);
+                }}
+                onBlur={() => {
+                  console.log('🗺️ 搜索框失去焦点');
+                  setTimeout(() => setHasInputFocus(false), 100);
+                }}
+                placeholder={isMobile ? "搜索地址..." : "搜索地址、建筑物或地标..."}
+                className={`w-full pr-10 rounded-md border ${isMobile ? 'px-3 py-2 text-sm' : 'px-3 py-2 text-sm'}`}
                 style={{
                   backgroundColor: theme.colors.surface,
                   borderColor: theme.colors.border,
@@ -1019,7 +1291,9 @@ export function MapLocationPicker({
             <button
               onClick={handleSearch}
               disabled={!searchQuery.trim() || isSearching || !isMapLoaded}
-              className="px-4 py-2 rounded-md text-sm font-medium transition-colors disabled:opacity-50"
+              className={`rounded-md font-medium transition-colors disabled:opacity-50 ${
+                isMobile ? 'px-3 py-2 text-xs' : 'px-4 py-2 text-sm'
+              }`}
               style={{
                 backgroundColor: theme.colors.primary,
                 color: 'white'
@@ -1115,14 +1389,45 @@ export function MapLocationPicker({
             style={{ minHeight: '400px' }}
           />
 
-          {/* 加载状态 */}
-          {(isLoadingMap || !isMapLoaded) && (
+          {/* 加载状态和错误显示 */}
+          {(isLoadingMap || !isMapLoaded || mapError) && (
             <div className="absolute inset-0 flex items-center justify-center bg-gray-50 z-10">
-              <div className="text-center">
-                <Loader className="w-8 h-8 animate-spin mx-auto mb-2" style={{ color: theme.colors.primary }} />
-                <div className="text-sm" style={{ color: theme.colors.textSecondary }}>
-                  {isLoadingMap ? '正在获取位置...' : '正在加载地图...'}
-                </div>
+              <div className="text-center p-4">
+                {mapError ? (
+                  <>
+                    <div className="text-4xl mb-4">⚠️</div>
+                    <div className={`font-medium mb-2 ${isMobile ? 'text-sm' : 'text-base'}`} style={{ color: theme.colors.text }}>
+                      地图加载失败
+                    </div>
+                    <div className={`mb-4 ${isMobile ? 'text-xs' : 'text-sm'}`} style={{ color: theme.colors.textSecondary }}>
+                      {mapError}
+                    </div>
+                    <button
+                      onClick={() => {
+                        setMapError(null);
+                        setIsLoadingMap(true);
+                        // 重新加载页面来重新初始化地图
+                        window.location.reload();
+                      }}
+                      className={`rounded-md font-medium transition-colors ${
+                        isMobile ? 'px-3 py-2 text-xs' : 'px-4 py-2 text-sm'
+                      }`}
+                      style={{
+                        backgroundColor: theme.colors.primary,
+                        color: 'white'
+                      }}
+                    >
+                      重新加载
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <Loader className={`animate-spin mx-auto mb-2 ${isMobile ? 'w-6 h-6' : 'w-8 h-8'}`} style={{ color: theme.colors.primary }} />
+                    <div className={isMobile ? 'text-xs' : 'text-sm'} style={{ color: theme.colors.textSecondary }}>
+                      {isLoadingMap ? '正在获取位置...' : '正在加载地图...'}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -1130,7 +1435,16 @@ export function MapLocationPicker({
           {/* 浮动定位按钮 */}
           {isMapLoaded && (
             <button
-              onClick={locateUser}
+              onClick={(e) => {
+                try {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  console.log('🗺️ 浮动定位按钮被点击');
+                  locateUser();
+                } catch (error) {
+                  handleError(error, '浮动定位按钮点击');
+                }
+              }}
               disabled={isLocating}
               className="absolute top-4 right-4 p-3 rounded-full shadow-lg transition-all duration-200 hover:scale-110 disabled:opacity-50 z-20"
               style={{

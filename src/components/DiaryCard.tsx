@@ -35,6 +35,29 @@ const weatherIcons: Record<WeatherType, React.ReactNode> = {
   unknown: <Cloud className="w-4 h-4 text-gray-400" />,
 };
 
+// 心情中文标签映射
+const moodLabels: Record<MoodType, string> = {
+  happy: '开心',
+  sad: '难过',
+  neutral: '平静',
+  excited: '兴奋',
+  anxious: '焦虑',
+  peaceful: '宁静',
+  calm: '冷静',
+  angry: '愤怒',
+  grateful: '感恩',
+  loved: '被爱'
+};
+
+// 天气中文标签映射
+const weatherLabels: Record<WeatherType, string> = {
+  sunny: '晴天',
+  cloudy: '多云',
+  rainy: '雨天',
+  snowy: '雪天',
+  unknown: '未知'
+};
+
 // 获取心情显示信息
 const getMoodDisplay = (mood: string) => {
   const predefinedMood = moodIcons[mood as MoodType];
@@ -45,6 +68,11 @@ const getMoodDisplay = (mood: string) => {
   return { icon: '💭', color: 'text-purple-500' };
 };
 
+// 获取心情中文标签
+const getMoodLabel = (mood: string) => {
+  return moodLabels[mood as MoodType] || mood;
+};
+
 // 获取天气显示信息
 const getWeatherDisplay = (weather: string) => {
   const predefinedWeather = weatherIcons[weather as WeatherType];
@@ -53,6 +81,11 @@ const getWeatherDisplay = (weather: string) => {
   }
   // 自定义天气使用默认图标
   return <Cloud className="w-4 h-4 text-gray-500" />;
+};
+
+// 获取天气中文标签
+const getWeatherLabel = (weather: string) => {
+  return weatherLabels[weather as WeatherType] || weather;
 };
 
 export function DiaryCard({ entry, onEdit }: DiaryCardProps) {
@@ -69,6 +102,8 @@ export function DiaryCard({ entry, onEdit }: DiaryCardProps) {
   const timeDisplay = getSmartTimeDisplay(entry.created_at!);
   const moodDisplay = getMoodDisplay(mood);
   const weatherDisplay = getWeatherDisplay(weather);
+  const moodLabel = getMoodLabel(mood);
+  const weatherLabel = getWeatherLabel(weather);
 
   const handleImageClick = (index: number) => {
     setSelectedImageIndex(index);
@@ -386,7 +421,7 @@ export function DiaryCard({ entry, onEdit }: DiaryCardProps) {
                 }}
               >
                 <span className="text-lg">{moodDisplay.icon}</span>
-                <span className="font-medium">心情: {mood}</span>
+                <span className="font-medium">心情: {moodLabel}</span>
               </div>
 
               <div
@@ -398,7 +433,7 @@ export function DiaryCard({ entry, onEdit }: DiaryCardProps) {
                 }}
               >
                 {weatherDisplay}
-                <span>天气: {weather}</span>
+                <span>天气: {weatherLabel}</span>
                 <span className="ml-2">
                   {formatFullDateTime(entry.created_at!)}
                 </span>
