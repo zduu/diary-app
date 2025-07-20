@@ -4,6 +4,7 @@ import { Clock, Calendar } from 'lucide-react';
 import { DiaryEntry } from '../types';
 import { DiaryCard } from './DiaryCard';
 import { TimelineView } from './TimelineView';
+import { ArchiveView } from './ArchiveView';
 import { getSmartTimeDisplay, formatTimelineDate, normalizeTimeString } from '../utils/timeUtils';
 import { useThemeContext } from './ThemeProvider';
 import { ViewMode } from './ViewModeToggle';
@@ -32,9 +33,13 @@ export function Timeline({ entries, onEdit, viewMode }: TimelineProps) {
   // 过滤掉隐藏的日记（只有管理员可以看到）
   const visibleEntries = entries.filter(entry => !entry.hidden);
 
-  // 如果是时间轴模式，直接使用TimelineView组件
+  // 根据视图模式选择对应的组件
   if (viewMode === 'timeline') {
     return <TimelineView entries={visibleEntries} onEdit={onEdit} />;
+  }
+
+  if (viewMode === 'archive') {
+    return <ArchiveView entries={visibleEntries} onEdit={onEdit} />;
   }
 
   // 卡片模式的逻辑

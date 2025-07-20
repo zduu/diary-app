@@ -33,7 +33,7 @@ function AppContent() {
   // 从localStorage加载显示模式偏好
   useEffect(() => {
     const savedViewMode = localStorage.getItem('diary_view_mode') as ViewMode;
-    if (savedViewMode && (savedViewMode === 'card' || savedViewMode === 'timeline')) {
+    if (savedViewMode && (savedViewMode === 'card' || savedViewMode === 'timeline' || savedViewMode === 'archive')) {
       setViewMode(savedViewMode);
     }
   }, []);

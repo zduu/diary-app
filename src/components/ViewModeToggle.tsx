@@ -1,8 +1,8 @@
 
-import { LayoutGrid, List } from 'lucide-react';
+import { LayoutGrid, List, Archive } from 'lucide-react';
 import { useThemeContext } from './ThemeProvider';
 
-export type ViewMode = 'card' | 'timeline';
+export type ViewMode = 'card' | 'timeline' | 'archive';
 
 interface ViewModeToggleProps {
   viewMode: ViewMode;
@@ -46,6 +46,22 @@ export function ViewModeToggle({ viewMode, onViewModeChange }: ViewModeTogglePro
       >
         <List className="w-4 h-4" />
         <span className="hidden sm:inline">时间轴</span>
+      </button>
+
+      {/* 归纳模式 */}
+      <button
+        onClick={() => onViewModeChange('archive')}
+        className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+          viewMode === 'archive' ? 'shadow-sm' : ''
+        }`}
+        style={{
+          backgroundColor: viewMode === 'archive' ? theme.colors.primary : 'transparent',
+          color: viewMode === 'archive' ? 'white' : theme.colors.textSecondary,
+        }}
+        title="归纳模式"
+      >
+        <Archive className="w-4 h-4" />
+        <span className="hidden sm:inline">归纳</span>
       </button>
     </div>
   );
