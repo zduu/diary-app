@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Search, X, Filter } from 'lucide-react';
+import { Search, X, Filter, Tag, Calendar } from 'lucide-react';
 import { useThemeContext } from './ThemeProvider';
 import { useAdminAuth } from './AdminPanel';
+import { useQuickFiltersSettings } from '../hooks/useQuickFiltersSettings';
 import { DiaryEntry } from '../types';
 import { normalizeTimeString } from '../utils/timeUtils';
 
@@ -14,6 +15,7 @@ interface SearchBarProps {
 export function SearchBar({ entries, onSearchResults, onClearSearch }: SearchBarProps) {
   const { theme } = useThemeContext();
   const { isAdminAuthenticated } = useAdminAuth();
+  const { settings: quickFiltersSettings } = useQuickFiltersSettings();
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [searchFilters, setSearchFilters] = useState({
@@ -23,6 +25,9 @@ export function SearchBar({ entries, onSearchResults, onClearSearch }: SearchBar
     mood: '',
     weather: '',
     dateRange: '',
+    selectedTag: '',
+    selectedYear: '',
+    selectedMonth: '',
   });
 
   // 执行搜索
@@ -60,11 +65,33 @@ export function SearchBar({ entries, onSearchResults, onClearSearch }: SearchBar
         return false;
       }
 
+      // 标签过滤
+      if (filters.selectedTag && (!entry.tags || !entry.tags.includes(filters.selectedTag))) {
+        return false;
+      }
+
+      // 年份过滤
+      if (filters.selectedYear) {
+        const entryDate = new Date(normalizeTimeString(entry.created_at!));
+        if (entryDate.getFullYear().toString() !== filters.selectedYear) {
+          return false;
+        }
+      }
+
+      // 月份过滤
+      if (filters.selectedMonth) {
+        const entryDate = new Date(normalizeTimeString(entry.created_at!));
+        const entryMonth = (entryDate.getMonth() + 1).toString().padStart(2, '0');
+        if (entryMonth !== filters.selectedMonth) {
+          return false;
+        }
+      }
+
       // 日期范围过滤
       if (filters.dateRange) {
         const entryDate = new Date(normalizeTimeString(entry.created_at!));
         const now = new Date();
-        
+
         switch (filters.dateRange) {
           case 'today':
             if (entryDate.toDateString() !== now.toDateString()) return false;
@@ -98,6 +125,44 @@ export function SearchBar({ entries, onSearchResults, onClearSearch }: SearchBar
   const handleClearSearch = () => {
     setSearchQuery('');
     onClearSearch();
+  };
+
+  // 获取所有可用的标签
+  const getAllTags = () => {
+    const tagSet = new Set<string>();
+    entries.forEach(entry => {
+      if (!entry.hidden && entry.tags) {
+        entry.tags.forEach(tag => tagSet.add(tag));
+      }
+    });
+    return Array.from(tagSet).sort();
+  };
+
+  // 获取所有可用的年份
+  const getAllYears = () => {
+    const yearSet = new Set<string>();
+    entries.forEach(entry => {
+      if (!entry.hidden && entry.created_at) {
+        const year = new Date(normalizeTimeString(entry.created_at)).getFullYear().toString();
+        yearSet.add(year);
+      }
+    });
+    return Array.from(yearSet).sort((a, b) => parseInt(b) - parseInt(a)); // 降序排列
+  };
+
+  // 获取指定年份的所有月份
+  const getMonthsForYear = (year: string) => {
+    const monthSet = new Set<string>();
+    entries.forEach(entry => {
+      if (!entry.hidden && entry.created_at) {
+        const entryDate = new Date(normalizeTimeString(entry.created_at));
+        if (entryDate.getFullYear().toString() === year) {
+          const month = (entryDate.getMonth() + 1).toString().padStart(2, '0');
+          monthSet.add(month);
+        }
+      }
+    });
+    return Array.from(monthSet).sort((a, b) => parseInt(b) - parseInt(a)); // 降序排列
   };
 
   // 只有管理员认证后才显示搜索框
@@ -249,6 +314,89 @@ export function SearchBar({ entries, onSearchResults, onClearSearch }: SearchBar
               <option value="snowy">雪天</option>
             </select>
           </div>
+
+          {/* 标签和时间过滤 - 只在快速筛选功能启用时显示 */}
+          {quickFiltersSettings.enabled && (
+            <>
+              {/* 标签过滤 */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium flex items-center gap-2" style={{ color: theme.colors.text }}>
+                  <Tag className="w-4 h-4" />
+                  按标签筛选
+                </label>
+                <select
+                  value={searchFilters.selectedTag}
+                  onChange={(e) => setSearchFilters(prev => ({ ...prev, selectedTag: e.target.value }))}
+                  className="w-full px-3 py-2 rounded border"
+                  style={{
+                    backgroundColor: theme.colors.surface,
+                    borderColor: theme.colors.border,
+                    color: theme.colors.text,
+                  }}
+                >
+                  <option value="">所有标签</option>
+                  {getAllTags().map(tag => (
+                    <option key={tag} value={tag}>#{tag}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* 年份过滤 */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium flex items-center gap-2" style={{ color: theme.colors.text }}>
+                  <Calendar className="w-4 h-4" />
+                  按年份筛选
+                </label>
+                <select
+                  value={searchFilters.selectedYear}
+                  onChange={(e) => {
+                    setSearchFilters(prev => ({
+                      ...prev,
+                      selectedYear: e.target.value,
+                      selectedMonth: '' // 清空月份选择
+                    }));
+                  }}
+                  className="w-full px-3 py-2 rounded border"
+                  style={{
+                    backgroundColor: theme.colors.surface,
+                    borderColor: theme.colors.border,
+                    color: theme.colors.text,
+                  }}
+                >
+                  <option value="">所有年份</option>
+                  {getAllYears().map(year => (
+                    <option key={year} value={year}>{year}年</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* 月份过滤 */}
+              {searchFilters.selectedYear && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium" style={{ color: theme.colors.text }}>
+                    按月份筛选
+                  </label>
+                  <select
+                    value={searchFilters.selectedMonth}
+                    onChange={(e) => setSearchFilters(prev => ({ ...prev, selectedMonth: e.target.value }))}
+                    className="w-full px-3 py-2 rounded border"
+                    style={{
+                      backgroundColor: theme.colors.surface,
+                      borderColor: theme.colors.border,
+                      color: theme.colors.text,
+                    }}
+                  >
+                    <option value="">所有月份</option>
+                    {getMonthsForYear(searchFilters.selectedYear).map(month => (
+                      <option key={month} value={month}>
+                        {parseInt(month)}月
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </>
+          )}
 
           {/* 日期范围 */}
           <div className="space-y-2">

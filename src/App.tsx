@@ -5,6 +5,7 @@ import { DiaryForm } from './components/DiaryForm';
 import { AdminPanel, AdminAuthProvider, useAdminAuth } from './components/AdminPanel';
 import { PasswordProtection } from './components/PasswordProtection';
 import { SearchBar } from './components/SearchBar';
+import { QuickFilters } from './components/QuickFilters';
 import { ThemeProvider, useThemeContext } from './components/ThemeProvider';
 import { ThemeToggle } from './components/ThemeToggle';
 import { DevTools } from './components/DevTools';
@@ -21,6 +22,7 @@ function AppContent() {
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [searchResults, setSearchResults] = useState<DiaryEntry[] | null>(null);
+  const [filterResults, setFilterResults] = useState<DiaryEntry[] | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('card');
 
   // 从localStorage加载显示模式偏好
@@ -37,6 +39,7 @@ function AppContent() {
     localStorage.setItem('diary_view_mode', mode);
   };
   const [isSearching, setIsSearching] = useState(false);
+  const [isFiltering, setIsFiltering] = useState(false);
 
   const handleSave = async (entryData: Omit<DiaryEntry, 'id' | 'created_at' | 'updated_at'>) => {
     try {
@@ -67,11 +70,27 @@ function AppContent() {
   const handleSearchResults = (results: DiaryEntry[]) => {
     setSearchResults(results);
     setIsSearching(true);
+    // 清除过滤结果，避免冲突
+    setFilterResults(null);
+    setIsFiltering(false);
   };
 
   const handleClearSearch = () => {
     setSearchResults(null);
     setIsSearching(false);
+  };
+
+  const handleFilterResults = (results: DiaryEntry[]) => {
+    setFilterResults(results);
+    setIsFiltering(true);
+    // 清除搜索结果，避免冲突
+    setSearchResults(null);
+    setIsSearching(false);
+  };
+
+  const handleClearFilter = () => {
+    setFilterResults(null);
+    setIsFiltering(false);
   };
 
   const handleNewEntry = () => {
@@ -259,6 +278,13 @@ function AppContent() {
               />
             </div>
 
+            {/* 快速过滤 */}
+            <QuickFilters
+              entries={entries}
+              onFilterResults={handleFilterResults}
+              onClearFilter={handleClearFilter}
+            />
+
             {/* 搜索结果提示 */}
             {isSearching && (
               <div className="p-3 rounded-lg" style={{
@@ -275,8 +301,24 @@ function AppContent() {
               </div>
             )}
 
+            {/* 过滤结果提示 */}
+            {isFiltering && (
+              <div className="p-3 rounded-lg" style={{
+                backgroundColor: theme.mode === 'glass'
+                  ? 'rgba(255, 255, 255, 0.1)'
+                  : theme.colors.surface,
+                border: `1px solid ${theme.colors.border}`,
+                color: theme.colors.text
+              }}>
+                {filterResults && filterResults.length > 0
+                  ? `筛选出 ${filterResults.length} 条日记`
+                  : '没有符合条件的日记'
+                }
+              </div>
+            )}
+
             <Timeline
-              entries={searchResults || entries}
+              entries={searchResults || filterResults || entries}
               onEdit={handleEdit}
               viewMode={viewMode}
             />

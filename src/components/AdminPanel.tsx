@@ -11,7 +11,8 @@ import {
   Unlock,
   X,
   Trash2,
-  Edit
+  Edit,
+  Filter
 } from 'lucide-react';
 import { useThemeContext } from './ThemeProvider';
 import { DiaryEntry } from '../types';
@@ -81,6 +82,10 @@ interface BackgroundSettings {
   imageUrl: string;
 }
 
+interface QuickFiltersSettings {
+  enabled: boolean;
+}
+
 export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }: AdminPanelProps) {
   const { theme } = useThemeContext();
   const { isAdminAuthenticated, setIsAdminAuthenticated } = useAdminAuth();
@@ -115,6 +120,10 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
       // 加载背景设置
       const backgroundSettings = await getBackgroundSettings();
       setCurrentBackgroundSettings(backgroundSettings);
+
+      // 加载快速筛选设置
+      const quickFiltersSettings = await getQuickFiltersSettings();
+      setCurrentQuickFiltersSettings(quickFiltersSettings);
     } catch (error) {
       console.error('加载设置失败:', error);
     }
@@ -140,6 +149,11 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
   });
   const [showBackgroundSettings, setShowBackgroundSettings] = useState(false);
   const [newBackgroundUrl, setNewBackgroundUrl] = useState('');
+
+  // 快速筛选设置状态
+  const [currentQuickFiltersSettings, setCurrentQuickFiltersSettings] = useState<QuickFiltersSettings>({
+    enabled: true
+  });
 
   // 保存设置到数据库
   const saveSettings = async (newSettings: AdminSettings) => {
@@ -468,6 +482,42 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
       alert('背景图片设置成功！');
     } catch (error) {
       alert('背景图片设置失败：' + (error instanceof Error ? error.message : '未知错误'));
+    }
+  };
+
+  // 获取快速筛选设置
+  const getQuickFiltersSettings = async (): Promise<QuickFiltersSettings> => {
+    try {
+      const allSettings = await apiService.getAllSettings();
+      return {
+        enabled: allSettings.quick_filters_enabled !== 'false' // 默认启用
+      };
+    } catch (error) {
+      console.error('获取快速筛选设置失败:', error);
+      return { enabled: true };
+    }
+  };
+
+  // 保存快速筛选设置
+  const saveQuickFiltersSettings = async (quickFiltersSettings: QuickFiltersSettings) => {
+    try {
+      await apiService.setSetting('quick_filters_enabled', quickFiltersSettings.enabled.toString());
+      setCurrentQuickFiltersSettings(quickFiltersSettings);
+      console.log('快速筛选设置已保存到数据库');
+    } catch (error) {
+      console.error('保存快速筛选设置失败:', error);
+      throw error;
+    }
+  };
+
+  // 切换快速筛选显示
+  const toggleQuickFilters = async () => {
+    try {
+      const newSettings = { ...currentQuickFiltersSettings, enabled: !currentQuickFiltersSettings.enabled };
+      await saveQuickFiltersSettings(newSettings);
+      alert(`快速筛选功能已${newSettings.enabled ? '开启' : '关闭'}！`);
+    } catch (error) {
+      alert('设置修改失败：' + (error instanceof Error ? error.message : '未知错误'));
     }
   };
 
@@ -838,6 +888,36 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
                     </div>
                   </div>
                 )}
+              </div>
+
+              {/* 界面设置区域 */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold" style={{ color: theme.colors.text }}>
+                  界面设置
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* 快速筛选功能切换 */}
+                  <button
+                    onClick={toggleQuickFilters}
+                    className="flex items-center gap-3 p-4 rounded-lg border transition-colors hover:bg-opacity-80"
+                    style={{
+                      backgroundColor: theme.colors.surface,
+                      borderColor: theme.colors.border,
+                      color: theme.colors.text,
+                    }}
+                  >
+                    <Filter className="w-5 h-5" style={{ color: theme.colors.primary }} />
+                    <div className="text-left">
+                      <div className="font-medium">
+                        {currentQuickFiltersSettings.enabled ? '关闭' : '开启'}快速筛选
+                      </div>
+                      <div className="text-sm" style={{ color: theme.colors.textSecondary }}>
+                        {currentQuickFiltersSettings.enabled ? '隐藏快速筛选功能' : '显示快速筛选功能'}
+                      </div>
+                    </div>
+                  </button>
+                </div>
               </div>
 
               {/* 密码修改区域 */}
