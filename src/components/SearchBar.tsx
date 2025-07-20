@@ -66,8 +66,18 @@ export function SearchBar({ entries, onSearchResults, onClearSearch }: SearchBar
       }
 
       // 标签过滤
-      if (filters.selectedTag && (!entry.tags || !entry.tags.includes(filters.selectedTag))) {
-        return false;
+      if (filters.selectedTag) {
+        if (filters.selectedTag === '__no_tags__') {
+          // 筛选无标签的日记
+          if (entry.tags && entry.tags.length > 0) {
+            return false;
+          }
+        } else {
+          // 筛选有特定标签的日记
+          if (!entry.tags || !entry.tags.includes(filters.selectedTag)) {
+            return false;
+          }
+        }
       }
 
       // 年份过滤
@@ -163,6 +173,11 @@ export function SearchBar({ entries, onSearchResults, onClearSearch }: SearchBar
       }
     });
     return Array.from(monthSet).sort((a, b) => parseInt(b) - parseInt(a)); // 降序排列
+  };
+
+  // 获取无标签日记的数量
+  const getNoTagsCount = () => {
+    return entries.filter(entry => !entry.hidden && (!entry.tags || entry.tags.length === 0)).length;
   };
 
   // 只有管理员认证后才显示搜索框
@@ -335,6 +350,7 @@ export function SearchBar({ entries, onSearchResults, onClearSearch }: SearchBar
                   }}
                 >
                   <option value="">所有标签</option>
+                  <option value="__no_tags__">📝 无标签 ({getNoTagsCount()})</option>
                   {getAllTags().map(tag => (
                     <option key={tag} value={tag}>#{tag}</option>
                   ))}

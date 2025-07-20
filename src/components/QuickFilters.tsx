@@ -43,6 +43,11 @@ export function QuickFilters({ entries, onFilterResults, onClearFilter }: QuickF
     return Array.from(tagSet).sort();
   };
 
+  // 获取无标签日记的数量
+  const getNoTagsCount = () => {
+    return entries.filter(entry => !entry.hidden && (!entry.tags || entry.tags.length === 0)).length;
+  };
+
   // 获取所有可用的年份
   const getAllYears = () => {
     const yearSet = new Set<string>();
@@ -82,8 +87,18 @@ export function QuickFilters({ entries, onFilterResults, onClearFilter }: QuickF
       if (entry.hidden) return false;
 
       // 标签过滤
-      if (tag && (!entry.tags || !entry.tags.includes(tag))) {
-        return false;
+      if (tag) {
+        if (tag === '__no_tags__') {
+          // 筛选无标签的日记
+          if (entry.tags && entry.tags.length > 0) {
+            return false;
+          }
+        } else {
+          // 筛选有特定标签的日记
+          if (!entry.tags || !entry.tags.includes(tag)) {
+            return false;
+          }
+        }
       }
 
       // 年份过滤
@@ -176,6 +191,7 @@ export function QuickFilters({ entries, onFilterResults, onClearFilter }: QuickF
             } as React.CSSProperties}
           >
             <option value="">所有标签</option>
+            <option value="__no_tags__">📝 无标签 ({getNoTagsCount()})</option>
             {getAllTags().map(tag => (
               <option key={tag} value={tag}>#{tag}</option>
             ))}
@@ -257,7 +273,7 @@ export function QuickFilters({ entries, onFilterResults, onClearFilter }: QuickF
               }}
             >
               <Tag className="w-3 h-3" />
-              #{selectedTag}
+              {selectedTag === '__no_tags__' ? '📝 无标签' : `#${selectedTag}`}
               <button
                 onClick={() => setSelectedTag('')}
                 className="hover:opacity-80 transition-opacity"
