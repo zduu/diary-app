@@ -86,6 +86,10 @@ interface QuickFiltersSettings {
   enabled: boolean;
 }
 
+interface ExportSettings {
+  enabled: boolean;
+}
+
 export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }: AdminPanelProps) {
   const { theme } = useThemeContext();
   const { isAdminAuthenticated, setIsAdminAuthenticated } = useAdminAuth();
@@ -124,6 +128,10 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
       // 加载快速筛选设置
       const quickFiltersSettings = await getQuickFiltersSettings();
       setCurrentQuickFiltersSettings(quickFiltersSettings);
+
+      // 加载导出功能设置
+      const exportSettings = await getExportSettings();
+      setCurrentExportSettings(exportSettings);
     } catch (error) {
       console.error('加载设置失败:', error);
     }
@@ -152,6 +160,11 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
 
   // 快速筛选设置状态
   const [currentQuickFiltersSettings, setCurrentQuickFiltersSettings] = useState<QuickFiltersSettings>({
+    enabled: true
+  });
+
+  // 导出功能设置状态
+  const [currentExportSettings, setCurrentExportSettings] = useState<ExportSettings>({
     enabled: true
   });
 
@@ -516,6 +529,42 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
       const newSettings = { ...currentQuickFiltersSettings, enabled: !currentQuickFiltersSettings.enabled };
       await saveQuickFiltersSettings(newSettings);
       alert(`快速筛选功能已${newSettings.enabled ? '开启' : '关闭'}！`);
+    } catch (error) {
+      alert('设置修改失败：' + (error instanceof Error ? error.message : '未知错误'));
+    }
+  };
+
+  // 获取导出功能设置
+  const getExportSettings = async (): Promise<ExportSettings> => {
+    try {
+      const allSettings = await apiService.getAllSettings();
+      return {
+        enabled: allSettings.export_enabled !== 'false' // 默认启用
+      };
+    } catch (error) {
+      console.error('获取导出功能设置失败:', error);
+      return { enabled: true };
+    }
+  };
+
+  // 保存导出功能设置
+  const saveExportSettings = async (exportSettings: ExportSettings) => {
+    try {
+      await apiService.setSetting('export_enabled', exportSettings.enabled.toString());
+      setCurrentExportSettings(exportSettings);
+      console.log('导出功能设置已保存到数据库');
+    } catch (error) {
+      console.error('保存导出功能设置失败:', error);
+      throw error;
+    }
+  };
+
+  // 切换导出功能显示
+  const toggleExport = async () => {
+    try {
+      const newSettings = { ...currentExportSettings, enabled: !currentExportSettings.enabled };
+      await saveExportSettings(newSettings);
+      alert(`导出功能已${newSettings.enabled ? '开启' : '关闭'}！`);
     } catch (error) {
       alert('设置修改失败：' + (error instanceof Error ? error.message : '未知错误'));
     }
@@ -914,6 +963,27 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
                       </div>
                       <div className="text-sm" style={{ color: theme.colors.textSecondary }}>
                         {currentQuickFiltersSettings.enabled ? '隐藏快速筛选功能' : '显示快速筛选功能'}
+                      </div>
+                    </div>
+                  </button>
+
+                  {/* 导出功能切换 */}
+                  <button
+                    onClick={toggleExport}
+                    className="flex items-center gap-3 p-4 rounded-lg border transition-colors hover:bg-opacity-80"
+                    style={{
+                      backgroundColor: theme.colors.surface,
+                      borderColor: theme.colors.border,
+                      color: theme.colors.text,
+                    }}
+                  >
+                    <Download className="w-5 h-5" style={{ color: theme.colors.primary }} />
+                    <div className="text-left">
+                      <div className="font-medium">
+                        {currentExportSettings.enabled ? '关闭' : '开启'}导出功能
+                      </div>
+                      <div className="text-sm" style={{ color: theme.colors.textSecondary }}>
+                        {currentExportSettings.enabled ? '隐藏导出功能按钮' : '显示导出功能按钮'}
                       </div>
                     </div>
                   </button>

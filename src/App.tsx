@@ -1,22 +1,25 @@
 import { useState, useEffect } from 'react';
-import { Plus, BookOpen, RefreshCw, Settings } from 'lucide-react';
+import { Plus, BookOpen, RefreshCw, Settings, Download } from 'lucide-react';
 import { Timeline } from './components/Timeline';
 import { DiaryForm } from './components/DiaryForm';
 import { AdminPanel, AdminAuthProvider, useAdminAuth } from './components/AdminPanel';
 import { PasswordProtection } from './components/PasswordProtection';
 import { SearchBar } from './components/SearchBar';
 import { QuickFilters } from './components/QuickFilters';
+import { ExportModal } from './components/ExportModal';
 import { ThemeProvider, useThemeContext } from './components/ThemeProvider';
 import { ThemeToggle } from './components/ThemeToggle';
 import { DevTools } from './components/DevTools';
 import { ViewModeToggle, ViewMode } from './components/ViewModeToggle';
 import { useDiary } from './hooks/useDiary';
+import { useExportSettings } from './hooks/useExportSettings';
 import { DiaryEntry } from './types';
 
 function AppContent() {
   const { theme } = useThemeContext();
   const { isAdminAuthenticated } = useAdminAuth();
   const { entries, loading, error, createEntry, updateEntry, refreshEntries } = useDiary();
+  const { settings: exportSettings, loading: exportSettingsLoading } = useExportSettings();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<DiaryEntry | undefined>();
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
@@ -24,6 +27,8 @@ function AppContent() {
   const [searchResults, setSearchResults] = useState<DiaryEntry[] | null>(null);
   const [filterResults, setFilterResults] = useState<DiaryEntry[] | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('card');
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [exportType, setExportType] = useState<string>('全部日记');
 
   // 从localStorage加载显示模式偏好
   useEffect(() => {
@@ -96,6 +101,20 @@ function AppContent() {
   const handleNewEntry = () => {
     setEditingEntry(undefined);
     setIsFormOpen(true);
+  };
+
+  // 打开导出模态框
+  const handleOpenExportModal = () => {
+    // 确定导出类型
+    let type = '全部日记';
+    if (searchResults) {
+      type = '搜索结果';
+    } else if (filterResults) {
+      type = '筛选结果';
+    }
+
+    setExportType(type);
+    setIsExportModalOpen(true);
   };
 
   return (
@@ -287,33 +306,83 @@ function AppContent() {
 
             {/* 搜索结果提示 */}
             {isSearching && (
-              <div className="p-3 rounded-lg" style={{
+              <div className="flex items-center justify-between p-3 rounded-lg" style={{
                 backgroundColor: theme.mode === 'glass'
                   ? 'rgba(255, 255, 255, 0.1)'
                   : theme.colors.surface,
                 border: `1px solid ${theme.colors.border}`,
                 color: theme.colors.text
               }}>
-                {searchResults && searchResults.length > 0
-                  ? `找到 ${searchResults.length} 条匹配的日记`
-                  : '没有找到匹配的日记'
-                }
+                <span>
+                  {searchResults && searchResults.length > 0
+                    ? `找到 ${searchResults.length} 条匹配的日记`
+                    : '没有找到匹配的日记'
+                  }
+                </span>
+                {isAdminAuthenticated && !exportSettingsLoading && exportSettings.enabled && searchResults && searchResults.length > 0 && (
+                  <button
+                    onClick={handleOpenExportModal}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors text-sm"
+                    style={{
+                      backgroundColor: theme.colors.primary,
+                      color: 'white'
+                    }}
+                  >
+                    <Download className="w-4 h-4" />
+                    导出搜索结果
+                  </button>
+                )}
               </div>
             )}
 
             {/* 过滤结果提示 */}
             {isFiltering && (
-              <div className="p-3 rounded-lg" style={{
+              <div className="flex items-center justify-between p-3 rounded-lg" style={{
                 backgroundColor: theme.mode === 'glass'
                   ? 'rgba(255, 255, 255, 0.1)'
                   : theme.colors.surface,
                 border: `1px solid ${theme.colors.border}`,
                 color: theme.colors.text
               }}>
-                {filterResults && filterResults.length > 0
-                  ? `筛选出 ${filterResults.length} 条日记`
-                  : '没有符合条件的日记'
-                }
+                <span>
+                  {filterResults && filterResults.length > 0
+                    ? `筛选出 ${filterResults.length} 条日记`
+                    : '没有符合条件的日记'
+                  }
+                </span>
+                {isAdminAuthenticated && !exportSettingsLoading && exportSettings.enabled && filterResults && filterResults.length > 0 && (
+                  <button
+                    onClick={handleOpenExportModal}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors text-sm"
+                    style={{
+                      backgroundColor: theme.colors.primary,
+                      color: 'white'
+                    }}
+                  >
+                    <Download className="w-4 h-4" />
+                    导出筛选结果
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* 导出全部日记按钮 - 只在没有搜索或筛选时显示 */}
+            {isAdminAuthenticated && !exportSettingsLoading && exportSettings.enabled && !isSearching && !isFiltering && entries.length > 0 && (
+              <div className="flex justify-end mb-4">
+                <button
+                  onClick={handleOpenExportModal}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors"
+                  style={{
+                    backgroundColor: theme.mode === 'glass'
+                      ? 'rgba(255, 255, 255, 0.1)'
+                      : theme.colors.surface,
+                    border: `1px solid ${theme.colors.border}`,
+                    color: theme.colors.text
+                  }}
+                >
+                  <Download className="w-4 h-4" />
+                  导出全部日记
+                </button>
               </div>
             )}
 
@@ -341,6 +410,14 @@ function AppContent() {
         entries={entries}
         onEntriesUpdate={refreshEntries}
         onEdit={handleEdit}
+      />
+
+      {/* Export Modal */}
+      <ExportModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        entries={searchResults || filterResults || entries}
+        exportType={exportType}
       />
 
       {/* Dev Tools */}

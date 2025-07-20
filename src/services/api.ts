@@ -85,7 +85,8 @@ class MockApiService {
       app_password: 'diary123',
       login_background_enabled: 'false',
       login_background_url: '',
-      quick_filters_enabled: 'true'
+      quick_filters_enabled: 'true',
+      export_enabled: 'true'
     };
   }
 
