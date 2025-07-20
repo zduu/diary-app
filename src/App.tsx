@@ -13,6 +13,7 @@ import { DevTools } from './components/DevTools';
 import { ViewModeToggle, ViewMode } from './components/ViewModeToggle';
 import { useDiary } from './hooks/useDiary';
 import { useExportSettings } from './hooks/useExportSettings';
+import { useArchiveViewSettings } from './hooks/useArchiveViewSettings';
 import { DiaryEntry } from './types';
 
 function AppContent() {
@@ -20,6 +21,7 @@ function AppContent() {
   const { isAdminAuthenticated } = useAdminAuth();
   const { entries, loading, error, createEntry, updateEntry, refreshEntries } = useDiary();
   const { settings: exportSettings, loading: exportSettingsLoading } = useExportSettings();
+  const { settings: archiveViewSettings, loading: archiveViewSettingsLoading } = useArchiveViewSettings();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<DiaryEntry | undefined>();
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
@@ -37,6 +39,14 @@ function AppContent() {
       setViewMode(savedViewMode);
     }
   }, []);
+
+  // 当归纳视图被禁用时，自动切换到卡片模式
+  useEffect(() => {
+    if (!archiveViewSettingsLoading && !archiveViewSettings.enabled && viewMode === 'archive') {
+      setViewMode('card');
+      localStorage.setItem('diary_view_mode', 'card');
+    }
+  }, [archiveViewSettings.enabled, archiveViewSettingsLoading, viewMode]);
 
   // 保存显示模式偏好到localStorage
   const handleViewModeChange = (mode: ViewMode) => {

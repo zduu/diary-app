@@ -86,7 +86,8 @@ class MockApiService {
       login_background_enabled: 'false',
       login_background_url: '',
       quick_filters_enabled: 'true',
-      export_enabled: 'true'
+      export_enabled: 'true',
+      archive_view_enabled: 'true'
     };
   }
 

@@ -12,7 +12,8 @@ import {
   X,
   Trash2,
   Edit,
-  Filter
+  Filter,
+  Archive
 } from 'lucide-react';
 import { useThemeContext } from './ThemeProvider';
 import { DiaryEntry } from '../types';
@@ -90,6 +91,10 @@ interface ExportSettings {
   enabled: boolean;
 }
 
+interface ArchiveViewSettings {
+  enabled: boolean;
+}
+
 export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }: AdminPanelProps) {
   const { theme } = useThemeContext();
   const { isAdminAuthenticated, setIsAdminAuthenticated } = useAdminAuth();
@@ -132,6 +137,10 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
       // 加载导出功能设置
       const exportSettings = await getExportSettings();
       setCurrentExportSettings(exportSettings);
+
+      // 加载归纳视图设置
+      const archiveViewSettings = await getArchiveViewSettings();
+      setCurrentArchiveViewSettings(archiveViewSettings);
     } catch (error) {
       console.error('加载设置失败:', error);
     }
@@ -165,6 +174,11 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
 
   // 导出功能设置状态
   const [currentExportSettings, setCurrentExportSettings] = useState<ExportSettings>({
+    enabled: true
+  });
+
+  // 归纳视图设置状态
+  const [currentArchiveViewSettings, setCurrentArchiveViewSettings] = useState<ArchiveViewSettings>({
     enabled: true
   });
 
@@ -570,6 +584,42 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
     }
   };
 
+  // 获取归纳视图设置
+  const getArchiveViewSettings = async (): Promise<ArchiveViewSettings> => {
+    try {
+      const allSettings = await apiService.getAllSettings();
+      return {
+        enabled: allSettings.archive_view_enabled !== 'false' // 默认启用
+      };
+    } catch (error) {
+      console.error('获取归纳视图设置失败:', error);
+      return { enabled: true };
+    }
+  };
+
+  // 保存归纳视图设置
+  const saveArchiveViewSettings = async (archiveViewSettings: ArchiveViewSettings) => {
+    try {
+      await apiService.setSetting('archive_view_enabled', archiveViewSettings.enabled.toString());
+      setCurrentArchiveViewSettings(archiveViewSettings);
+      console.log('归纳视图设置已保存到数据库');
+    } catch (error) {
+      console.error('保存归纳视图设置失败:', error);
+      throw error;
+    }
+  };
+
+  // 切换归纳视图显示
+  const toggleArchiveView = async () => {
+    try {
+      const newSettings = { ...currentArchiveViewSettings, enabled: !currentArchiveViewSettings.enabled };
+      await saveArchiveViewSettings(newSettings);
+      alert(`归纳视图已${newSettings.enabled ? '开启' : '关闭'}！`);
+    } catch (error) {
+      alert('设置修改失败：' + (error instanceof Error ? error.message : '未知错误'));
+    }
+  };
+
   // 过滤日记（包括隐藏的）
   const filteredEntries = entries.filter(entry => {
     const matchesSearch = entry.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -945,7 +995,7 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
                   界面设置
                 </h3>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {/* 快速筛选功能切换 */}
                   <button
                     onClick={toggleQuickFilters}
@@ -984,6 +1034,27 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
                       </div>
                       <div className="text-sm" style={{ color: theme.colors.textSecondary }}>
                         {currentExportSettings.enabled ? '隐藏导出功能按钮' : '显示导出功能按钮'}
+                      </div>
+                    </div>
+                  </button>
+
+                  {/* 归纳视图切换 */}
+                  <button
+                    onClick={toggleArchiveView}
+                    className="flex items-center gap-3 p-4 rounded-lg border transition-colors hover:bg-opacity-80"
+                    style={{
+                      backgroundColor: theme.colors.surface,
+                      borderColor: theme.colors.border,
+                      color: theme.colors.text,
+                    }}
+                  >
+                    <Archive className="w-5 h-5" style={{ color: theme.colors.primary }} />
+                    <div className="text-left">
+                      <div className="font-medium">
+                        {currentArchiveViewSettings.enabled ? '关闭' : '开启'}归纳视图
+                      </div>
+                      <div className="text-sm" style={{ color: theme.colors.textSecondary }}>
+                        {currentArchiveViewSettings.enabled ? '隐藏归纳显示模式' : '显示归纳显示模式'}
                       </div>
                     </div>
                   </button>
