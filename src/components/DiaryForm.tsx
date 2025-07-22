@@ -498,14 +498,15 @@ export function DiaryForm({ entry, onSave, onCancel, isOpen }: DiaryFormProps) {
                 </div>
               </div>
 
-              {/* Location */}
-              <LocationPicker
-                location={location}
-                onLocationChange={setLocation}
-                disabled={loading}
-              />
             </>
           )}
+
+          {/* Location - 始终显示，不在高级选项中 */}
+          <LocationPicker
+            location={location}
+            onLocationChange={setLocation}
+            disabled={loading}
+          />
 
           {/* Actions */}
           <div

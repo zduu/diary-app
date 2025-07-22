@@ -51,6 +51,8 @@ export function MapLocationPicker({
   const [mapError, setMapError] = useState<string | null>(null);
   const [lastLocationTime, setLastLocationTime] = useState<number>(0);
   const [hasInputFocus, setHasInputFocus] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const [maxRetries] = useState(3);
 
   // 全局错误处理
   const handleError = (error: any, context: string) => {
@@ -60,48 +62,283 @@ export function MapLocationPicker({
     setMapError(`${context}失败: ${error.message || '未知错误'}`);
   };
 
-  // 简单定位方案（备用）
-  const simpleLocation = () => {
+  // 加载高德地图API
+  const loadAMapAPI = () => {
+    // 获取正确的密钥
+    const jsKey = LOCATION_CONFIG.AMAP_JS_KEY;
+    const securityCode = LOCATION_CONFIG.AMAP_SECURITY_CODE;
+
+    console.log('加载高德地图API:', { jsKey, securityCode, retryCount });
+
+    // 设置安全密钥
+    window._AMapSecurityConfig = {
+      securityJsCode: securityCode,
+    };
+
+    // 创建script标签加载高德地图API，添加更多插件
+    const script = document.createElement('script');
+    script.src = `https://webapi.amap.com/maps?v=2.0&key=${jsKey}&plugin=AMap.PlaceSearch,AMap.Geocoder,AMap.AutoComplete`;
+    script.async = true;
+    script.onload = () => {
+      console.log('🗺️ 高德地图API加载成功');
+      setRetryCount(0); // 重置重试计数
+      initMap();
+    };
+    script.onerror = (error) => {
+      console.error('🗺️ 高德地图API加载失败:', error);
+      setIsLoadingMap(false);
+
+      if (retryCount < maxRetries) {
+        console.log(`🗺️ 准备重试加载API，第${retryCount + 1}次重试`);
+        setRetryCount(prev => prev + 1);
+        setMapError(`地图加载失败，正在重试... (${retryCount + 1}/${maxRetries})`);
+
+        // 延迟重试，避免频繁请求
+        setTimeout(() => {
+          // 移除失败的script标签
+          document.head.removeChild(script);
+          loadAMapAPI();
+        }, 2000 * (retryCount + 1)); // 递增延迟
+      } else {
+        setMapError('地图加载失败，请检查网络连接后刷新页面');
+      }
+    };
+    document.head.appendChild(script);
+  };
+
+  // 初始化地图
+  const initMap = () => {
+    if (!mapContainerRef.current || !window.AMap) {
+      console.error('🗺️ 地图容器或AMap API未准备好');
+      setMapError('地图初始化失败：容器未准备好');
+      setIsLoadingMap(false);
+      return;
+    }
+
+    try {
+      console.log('🗺️ 开始初始化地图...');
+      setMapError(null);
+
+      // 创建地图实例
+      const map = new window.AMap.Map(mapContainerRef.current, {
+        zoom: isMobile ? 15 : 16, // 移动端使用较小的缩放级别
+        center: mapCenter,
+        mapStyle: theme.mode === 'dark' ? 'amap://styles/dark' : 'amap://styles/normal',
+        resizeEnable: true,
+        rotateEnable: false,
+        pitchEnable: false,
+        zoomEnable: true,
+        dragEnable: true,
+        // 移动端优化
+        touchZoom: isMobile,
+        doubleClickZoom: !isMobile,
+        scrollWheel: !isMobile,
+        keyboardEnable: !isMobile
+      });
+
+      mapRef.current = map;
+
+      // 等待地图完全加载
+      map.on('complete', () => {
+        console.log('🗺️ 地图加载完成');
+        setIsMapLoaded(true);
+        setIsLoadingMap(false);
+        setMapError(null);
+
+        // 如果有初始位置，添加选择标记
+        if (initialLocation) {
+          try {
+            addMarker(initialLocation.lng, initialLocation.lat);
+          } catch (error) {
+            console.error('🗺️ 添加初始位置标记失败:', error);
+          }
+        }
+
+        // 如果有用户位置，添加用户位置标记
+        if (userLocation) {
+          try {
+            addUserLocationMarker(userLocation[0], userLocation[1]);
+          } catch (error) {
+            console.error('🗺️ 添加用户位置标记失败:', error);
+          }
+        }
+      });
+
+      // 地图加载错误处理
+      map.on('error', (error: any) => {
+        console.error('🗺️ 地图加载错误:', error);
+        setIsLoadingMap(false);
+
+        if (retryCount < maxRetries) {
+          console.log(`🗺️ 地图错误，准备重试初始化，第${retryCount + 1}次重试`);
+          setRetryCount(prev => prev + 1);
+          setMapError(`地图初始化失败，正在重试... (${retryCount + 1}/${maxRetries})`);
+
+          // 延迟重试
+          setTimeout(() => {
+            if (mapRef.current) {
+              try {
+                mapRef.current.destroy();
+                mapRef.current = null;
+              } catch (e) {
+                console.warn('🗺️ 清理地图实例失败:', e);
+              }
+            }
+            initMap();
+          }, 1000 * (retryCount + 1));
+        } else {
+          setMapError('地图初始化失败，请刷新页面重试');
+        }
+      });
+
+      // 添加点击事件
+      map.on('click', handleMapClick);
+
+      // 初始化地点搜索服务
+      try {
+        const placeSearch = new window.AMap.PlaceSearch({
+          pageSize: 10,
+          pageIndex: 1,
+          city: '全国',
+          map: map,
+          panel: false
+        });
+        placeSearchRef.current = placeSearch;
+      } catch (error) {
+        console.error('🗺️ 搜索服务初始化失败:', error);
+      }
+
+      // 添加定位控件（可选，提供额外的定位功能）
+      try {
+        const geolocation = new window.AMap.Geolocation({
+          enableHighAccuracy: true,
+          timeout: 8000,
+          maximumAge: 30000,
+          convert: true,
+          showButton: false, // 不显示按钮，我们有自己的按钮
+          showMarker: false, // 不显示默认标记，我们有自己的标记
+          showCircle: false, // 不显示精度圆圈
+          panToLocation: false, // 不自动平移到定位位置
+          zoomToAccuracy: false // 不自动调整缩放级别
+        });
+
+        map.addControl(geolocation);
+      } catch (error) {
+        console.log('🗺️ 定位控件初始化失败:', error);
+      }
+
+    } catch (error) {
+      console.error('🗺️ 地图初始化失败:', error);
+      setMapError('地图初始化失败');
+      setIsLoadingMap(false);
+    }
+  };
+
+  // 统一的定位函数（移动端和桌面端通用）
+  const unifiedLocation = () => {
     if (!navigator.geolocation) {
-      setMapError('浏览器不支持定位');
+      setMapError('浏览器不支持地理定位');
+      return;
+    }
+
+    // 检查地图是否已加载
+    if (!mapRef.current || !isMapLoaded) {
+      console.warn('🗺️ 地图未完全加载，无法定位');
+      setMapError('地图未加载完成，请稍后重试');
       return;
     }
 
     setIsLocating(true);
     setMapError(null);
 
+    console.log('🗺️ 开始统一定位流程');
+
+    // 创建一个中止控制器，用于处理组件卸载或地图销毁的情况
+    const abortController = new AbortController();
+
     navigator.geolocation.getCurrentPosition(
       (position) => {
         try {
-          const { latitude, longitude } = position.coords;
+          // 检查是否已被中止
+          if (abortController.signal.aborted) {
+            console.log('🗺️ 定位操作已被中止');
+            return;
+          }
+
+          const { latitude, longitude, accuracy } = position.coords;
+          console.log('🗺️ 定位成功:', { latitude, longitude, accuracy });
+
+          // 坐标转换
           const gcj02Result = wgs84ToGcj02(latitude, longitude);
           const newLocation: [number, number] = [gcj02Result.longitude, gcj02Result.latitude];
 
+          // 更新状态
           setUserLocation(newLocation);
 
-          if (mapRef.current) {
-            mapRef.current.setCenter(newLocation);
-            mapRef.current.setZoom(16);
-            addUserLocationMarker(gcj02Result.longitude, gcj02Result.latitude);
+          // 移动端特殊处理：延迟更新地图以避免渲染冲突
+          const updateMap = () => {
+            // 再次检查地图实例是否存在且有效
+            if (mapRef.current && isMapLoaded && !abortController.signal.aborted) {
+              try {
+                // 验证地图实例是否仍然有效
+                if (typeof mapRef.current.setCenter === 'function') {
+                  mapRef.current.setCenter(newLocation);
+                  mapRef.current.setZoom(isMobile ? 16 : 17);
+                  addUserLocationMarker(gcj02Result.longitude, gcj02Result.latitude);
+                  console.log('🗺️ 地图更新成功');
+                } else {
+                  console.error('🗺️ 地图实例方法无效');
+                  setMapError('地图状态异常，请重新打开');
+                }
+              } catch (mapError) {
+                console.error('🗺️ 地图更新失败:', mapError);
+                setMapError('地图更新失败，请重试');
+              }
+            } else {
+              console.error('🗺️ 地图实例丢失或已中止');
+              if (!abortController.signal.aborted) {
+                setMapError('地图实例丢失，请重新打开');
+              }
+            }
+
+            setIsLocating(false);
+          };
+
+          // 移动端延迟更新，桌面端立即更新
+          if (isMobile) {
+            setTimeout(updateMap, 100);
+          } else {
+            updateMap();
           }
 
-          setIsLocating(false);
-          console.log('🗺️ 简单定位成功');
         } catch (error) {
-          console.error('🗺️ 简单定位处理失败:', error);
+          console.error('🗺️ 定位处理失败:', error);
           setIsLocating(false);
           setMapError('定位处理失败');
         }
       },
       (error) => {
-        console.error('🗺️ 简单定位失败:', error);
+        console.error('🗺️ 定位失败:', error);
         setIsLocating(false);
-        setMapError('定位失败');
+
+        let errorMessage = '定位失败';
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorMessage = '位置权限被拒绝';
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorMessage = '位置信息不可用';
+            break;
+          case error.TIMEOUT:
+            errorMessage = '定位超时';
+            break;
+        }
+        setMapError(errorMessage);
       },
       {
-        timeout: 5000,
-        enableHighAccuracy: false,
-        maximumAge: 300000 // 5分钟缓存
+        timeout: isMobile ? 8000 : 10000, // 移动端稍短的超时时间
+        enableHighAccuracy: true,
+        maximumAge: 30000 // 30秒缓存
       }
     );
   };
@@ -236,136 +473,7 @@ export function MapLocationPicker({
       return;
     }
 
-    const loadAMapAPI = () => {
-      // 获取正确的密钥
-      const jsKey = LOCATION_CONFIG.AMAP_JS_KEY;
-      const securityCode = LOCATION_CONFIG.AMAP_SECURITY_CODE;
 
-      console.log('加载高德地图API:', { jsKey, securityCode });
-
-      // 设置安全密钥
-      window._AMapSecurityConfig = {
-        securityJsCode: securityCode,
-      };
-
-      // 创建script标签加载高德地图API，添加更多插件
-      const script = document.createElement('script');
-      script.src = `https://webapi.amap.com/maps?v=2.0&key=${jsKey}&plugin=AMap.PlaceSearch,AMap.Geocoder,AMap.AutoComplete`;
-      script.async = true;
-      script.onload = initMap;
-      script.onerror = () => {
-        console.error('高德地图API加载失败');
-        setIsLoadingMap(false);
-      };
-      document.head.appendChild(script);
-    };
-
-    const initMap = () => {
-      if (!mapContainerRef.current || !window.AMap) {
-        console.error('🗺️ 地图容器或AMap API未准备好');
-        setMapError('地图初始化失败：容器未准备好');
-        setIsLoadingMap(false);
-        return;
-      }
-
-      try {
-        console.log('🗺️ 开始初始化地图...');
-        setMapError(null);
-
-        // 创建地图实例
-        const map = new window.AMap.Map(mapContainerRef.current, {
-          zoom: isMobile ? 15 : 16, // 移动端使用较小的缩放级别
-          center: mapCenter,
-          mapStyle: theme.mode === 'dark' ? 'amap://styles/dark' : 'amap://styles/normal',
-          resizeEnable: true,
-          rotateEnable: false,
-          pitchEnable: false,
-          zoomEnable: true,
-          dragEnable: true,
-          // 移动端优化
-          touchZoom: isMobile,
-          doubleClickZoom: !isMobile,
-          scrollWheel: !isMobile,
-          keyboardEnable: !isMobile
-        });
-
-        mapRef.current = map;
-
-        // 等待地图完全加载
-        map.on('complete', () => {
-          console.log('🗺️ 地图加载完成');
-          setIsMapLoaded(true);
-          setIsLoadingMap(false);
-          setMapError(null);
-
-          // 如果有初始位置，添加选择标记
-          if (initialLocation) {
-            try {
-              addMarker(initialLocation.lng, initialLocation.lat);
-            } catch (error) {
-              console.error('🗺️ 添加初始位置标记失败:', error);
-            }
-          }
-
-          // 如果有用户位置，添加用户位置标记
-          if (userLocation) {
-            try {
-              addUserLocationMarker(userLocation[0], userLocation[1]);
-            } catch (error) {
-              console.error('🗺️ 添加用户位置标记失败:', error);
-            }
-          }
-        });
-
-        // 地图加载错误处理
-        map.on('error', (error: any) => {
-          console.error('🗺️ 地图加载错误:', error);
-          setMapError('地图加载失败');
-          setIsLoadingMap(false);
-        });
-
-        // 添加点击事件
-        map.on('click', handleMapClick);
-
-        // 初始化地点搜索服务
-        try {
-          const placeSearch = new window.AMap.PlaceSearch({
-            pageSize: 10,
-            pageIndex: 1,
-            city: '全国',
-            map: map,
-            panel: false
-          });
-          placeSearchRef.current = placeSearch;
-        } catch (error) {
-          console.error('🗺️ 搜索服务初始化失败:', error);
-        }
-
-        // 添加定位控件（可选，提供额外的定位功能）
-        try {
-          const geolocation = new window.AMap.Geolocation({
-            enableHighAccuracy: true,
-            timeout: 8000,
-            maximumAge: 30000,
-            convert: true,
-            showButton: false, // 不显示按钮，我们有自己的按钮
-            showMarker: false, // 不显示默认标记，我们有自己的标记
-            showCircle: false, // 不显示精度圆圈
-            panToLocation: false, // 不自动平移到定位位置
-            zoomToAccuracy: false // 不自动调整缩放级别
-          });
-
-          map.addControl(geolocation);
-        } catch (error) {
-          console.log('🗺️ 定位控件初始化失败:', error);
-        }
-
-      } catch (error) {
-        console.error('🗺️ 地图初始化失败:', error);
-        setMapError('地图初始化失败');
-        setIsLoadingMap(false);
-      }
-    };
 
     if (window.AMap) {
       initMap();
@@ -461,16 +569,23 @@ export function MapLocationPicker({
     }
   };
 
-  // 添加用户位置标记（蓝色圆点）
+  // 添加用户位置标记（增强版）
   const addUserLocationMarker = (lng: number, lat: number) => {
-    if (!mapRef.current) return;
+    if (!mapRef.current || !isMapLoaded) {
+      console.warn('🗺️ 地图未加载，无法添加用户位置标记');
+      return;
+    }
 
     console.log('🗺️ 正在添加用户位置标记:', { lng, lat });
 
     // 移除旧的用户位置标记
     if (userMarkerRef.current) {
-      mapRef.current.remove(userMarkerRef.current);
-      userMarkerRef.current = null;
+      try {
+        mapRef.current.remove(userMarkerRef.current);
+        userMarkerRef.current = null;
+      } catch (removeError) {
+        console.warn('🗺️ 移除旧用户标记失败:', removeError);
+      }
     }
 
     // 方法0：最简单的默认标记测试
@@ -886,27 +1001,10 @@ export function MapLocationPicker({
     }
   };
 
-  // 定位到用户位置（增强版）
+  // 定位到用户位置（统一版本）
   const locateUser = () => {
     try {
       console.log('🗺️ locateUser 被调用');
-
-      // 移动端：如果输入框有焦点，使用简单定位
-      if (isMobile && hasInputFocus) {
-        console.log('🗺️ 移动端输入框有焦点，使用简单定位');
-        // 先失焦
-        const activeElement = document.activeElement as HTMLElement;
-        if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
-          activeElement.blur();
-        }
-        setHasInputFocus(false);
-
-        // 延迟执行简单定位
-        setTimeout(() => {
-          simpleLocation();
-        }, 300);
-        return;
-      }
 
       // 防抖：避免快速重复点击
       const now = Date.now();
@@ -916,7 +1014,7 @@ export function MapLocationPicker({
       }
       setLastLocationTime(now);
 
-      // 移动端：检查并失焦输入框
+      // 移动端：处理输入框焦点问题
       if (isMobile) {
         const activeElement = document.activeElement as HTMLElement;
         console.log('🗺️ 当前焦点元素:', activeElement?.tagName, (activeElement as any)?.type);
@@ -935,28 +1033,20 @@ export function MapLocationPicker({
           // 等待键盘收起后再执行定位
           setTimeout(() => {
             try {
-              console.log('🗺️ 延迟执行定位');
-              performLocation();
+              console.log('🗺️ 延迟执行统一定位');
+              unifiedLocation();
             } catch (delayError) {
               console.error('🗺️ 延迟定位执行失败:', delayError);
               setIsLocating(false);
               setMapError('定位执行失败');
             }
-          }, 800); // 进一步增加延迟时间
+          }, 500); // 减少延迟时间
           return;
         }
       }
 
-      console.log('🗺️ 直接执行定位');
-
-      // 移动端使用简单定位，桌面端使用复杂定位
-      if (isMobile) {
-        console.log('🗺️ 移动端使用简单定位方案');
-        simpleLocation();
-      } else {
-        console.log('🗺️ 桌面端使用复杂定位方案');
-        performLocation();
-      }
+      console.log('🗺️ 直接执行统一定位');
+      unifiedLocation();
     } catch (error) {
       console.error('🗺️ locateUser 函数异常:', error);
       setIsLocating(false);
@@ -978,6 +1068,17 @@ export function MapLocationPicker({
 
       if (isLocating) {
         console.warn('🗺️ 正在定位中，请稍候');
+        return;
+      }
+
+      // 移动端输入框焦点保护：如果有输入框获得焦点，延迟执行定位
+      if (isMobile && hasInputFocus) {
+        console.log('🗺️ 检测到输入框焦点，延迟定位以避免闪退');
+        setTimeout(() => {
+          if (!hasInputFocus) {
+            performLocation();
+          }
+        }, 500);
         return;
       }
 
@@ -1287,11 +1388,11 @@ export function MapLocationPicker({
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 md:p-4">
       <div
         className={`bg-white rounded-lg shadow-xl w-full flex flex-col ${
           isMobile
-            ? 'h-[95vh] max-w-full mx-2'
+            ? 'h-[98vh] max-w-full mx-0'
             : 'max-w-4xl h-[80vh]'
         }`}
         style={{ backgroundColor: theme.colors.background }}
@@ -1355,7 +1456,7 @@ export function MapLocationPicker({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyPress={(e) => {
+                onKeyDown={(e) => {
                   try {
                     if (e.key === 'Enter') {
                       e.preventDefault();
@@ -1467,7 +1568,7 @@ export function MapLocationPicker({
 
           {/* 搜索结果 */}
           {searchResults.length > 0 && (
-            <div className="mt-2 max-h-40 overflow-y-auto">
+            <div className={`mt-2 overflow-y-auto ${isMobile ? 'max-h-32' : 'max-h-40'}`}>
               {searchResults.map((poi, index) => (
                 <div
                   key={index}
@@ -1481,13 +1582,13 @@ export function MapLocationPicker({
                       handleError(error, '搜索结果点击');
                     }
                   }}
-                  className="p-2 hover:bg-gray-50 cursor-pointer rounded text-sm border-b last:border-b-0"
+                  className={`${isMobile ? 'p-1.5' : 'p-2'} hover:bg-gray-50 cursor-pointer rounded ${isMobile ? 'text-xs' : 'text-sm'} border-b last:border-b-0`}
                   style={{ borderColor: theme.colors.border }}
                 >
-                  <div className="font-medium" style={{ color: theme.colors.text }}>
+                  <div className="font-medium truncate" style={{ color: theme.colors.text }}>
                     {poi.name}
                   </div>
-                  <div className="text-xs" style={{ color: theme.colors.textSecondary }}>
+                  <div className={`${isMobile ? 'text-xs' : 'text-xs'} truncate`} style={{ color: theme.colors.textSecondary }}>
                     {poi.address}
                   </div>
                 </div>
@@ -1501,7 +1602,10 @@ export function MapLocationPicker({
           <div
             ref={mapContainerRef}
             className="w-full h-full"
-            style={{ minHeight: '400px' }}
+            style={{
+              minHeight: isMobile ? '60vh' : '400px',
+              height: isMobile ? '100%' : 'auto'
+            }}
           />
 
           {/* 加载状态和错误显示 */}
@@ -1517,23 +1621,55 @@ export function MapLocationPicker({
                     <div className={`mb-4 ${isMobile ? 'text-xs' : 'text-sm'}`} style={{ color: theme.colors.textSecondary }}>
                       {mapError}
                     </div>
-                    <button
-                      onClick={() => {
-                        setMapError(null);
-                        setIsLoadingMap(true);
-                        // 重新加载页面来重新初始化地图
-                        window.location.reload();
-                      }}
-                      className={`rounded-md font-medium transition-colors ${
-                        isMobile ? 'px-3 py-2 text-xs' : 'px-4 py-2 text-sm'
-                      }`}
-                      style={{
-                        backgroundColor: theme.colors.primary,
-                        color: 'white'
-                      }}
-                    >
-                      重新加载
-                    </button>
+                    <div className="flex gap-2 justify-center">
+                      <button
+                        onClick={() => {
+                          setMapError(null);
+                          setIsLoadingMap(true);
+                          setRetryCount(0);
+
+                          // 清理现有地图实例
+                          if (mapRef.current) {
+                            try {
+                              mapRef.current.destroy();
+                              mapRef.current = null;
+                            } catch (e) {
+                              console.warn('🗺️ 清理地图实例失败:', e);
+                            }
+                          }
+
+                          // 重新初始化地图
+                          if (window.AMap) {
+                            initMap();
+                          } else {
+                            loadAMapAPI();
+                          }
+                        }}
+                        className={`rounded-md font-medium transition-colors ${
+                          isMobile ? 'px-3 py-2 text-xs' : 'px-4 py-2 text-sm'
+                        }`}
+                        style={{
+                          backgroundColor: theme.colors.primary,
+                          color: 'white'
+                        }}
+                      >
+                        重试
+                      </button>
+                      <button
+                        onClick={() => {
+                          window.location.reload();
+                        }}
+                        className={`rounded-md font-medium transition-colors ${
+                          isMobile ? 'px-3 py-2 text-xs' : 'px-4 py-2 text-sm'
+                        }`}
+                        style={{
+                          backgroundColor: theme.colors.textSecondary,
+                          color: 'white'
+                        }}
+                      >
+                        刷新页面
+                      </button>
+                    </div>
                   </>
                 ) : (
                   <>
