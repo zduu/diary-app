@@ -91,13 +91,18 @@ export function ArchiveView({ entries, onEdit }: ArchiveViewProps) {
 
     if (groupBy === 'week') {
       const startOfWeek = new Date(date);
-      startOfWeek.setDate(date.getDate() - date.getDay());
+      // 修正：以周一为一周的开始（getDay()返回0-6，周日为0，周一为1）
+      const dayOfWeek = startOfWeek.getDay();
+      const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // 周日需要减去6天到周一
+      startOfWeek.setDate(startOfWeek.getDate() - daysToMonday);
 
       const weekYear = startOfWeek.getFullYear();
 
       // 计算当前周
       const nowStartOfWeek = new Date(now);
-      nowStartOfWeek.setDate(now.getDate() - now.getDay());
+      const nowDayOfWeek = nowStartOfWeek.getDay();
+      const nowDaysToMonday = nowDayOfWeek === 0 ? 6 : nowDayOfWeek - 1;
+      nowStartOfWeek.setDate(nowStartOfWeek.getDate() - nowDaysToMonday);
 
       const daysDiff = Math.floor((nowStartOfWeek.getTime() - startOfWeek.getTime()) / (24 * 60 * 60 * 1000));
       const weeksDiff = Math.floor(daysDiff / 7);
@@ -117,14 +122,23 @@ export function ArchiveView({ entries, onEdit }: ArchiveViewProps) {
         if (startOfWeek.getMonth() === endOfWeek.getMonth()) {
           const monthNames = ['一月', '二月', '三月', '四月', '五月', '六月',
                              '七月', '八月', '九月', '十月', '十一月', '十二月'];
-          return `${monthNames[startOfWeek.getMonth()]}第${Math.ceil(startOfWeek.getDate() / 7)}周`;
+          // 修正：计算该月第几周的正确方法
+          const firstDayOfMonth = new Date(startOfWeek.getFullYear(), startOfWeek.getMonth(), 1);
+          const firstDayOfWeekInMonth = firstDayOfMonth.getDay();
+          const firstMondayOfMonth = firstDayOfWeekInMonth === 0 ? 2 : (8 - firstDayOfWeekInMonth + 1);
+          const weekOfMonth = Math.floor((startOfWeek.getDate() - firstMondayOfMonth) / 7) + 1;
+          return `${monthNames[startOfWeek.getMonth()]}第${weekOfMonth}周`;
         } else {
           return `${startOfWeek.getMonth() + 1}月${startOfWeek.getDate()}日那周`;
         }
       }
 
       // 其他年份
-      return `${weekYear}年${startOfWeek.getMonth() + 1}月第${Math.ceil(startOfWeek.getDate() / 7)}周`;
+      const firstDayOfMonth = new Date(startOfWeek.getFullYear(), startOfWeek.getMonth(), 1);
+      const firstDayOfWeekInMonth = firstDayOfMonth.getDay();
+      const firstMondayOfMonth = firstDayOfWeekInMonth === 0 ? 2 : (8 - firstDayOfWeekInMonth + 1);
+      const weekOfMonth = Math.floor((startOfWeek.getDate() - firstMondayOfMonth) / 7) + 1;
+      return `${weekYear}年${startOfWeek.getMonth() + 1}月第${weekOfMonth}周`;
     }
 
     return key;
@@ -180,10 +194,13 @@ export function ArchiveView({ entries, onEdit }: ArchiveViewProps) {
     entries.forEach(entry => {
       const date = new Date(normalizeTimeString(entry.created_at!));
       const startOfWeek = new Date(date);
-      startOfWeek.setDate(date.getDate() - date.getDay());
+      // 修正：以周一为一周的开始
+      const dayOfWeek = startOfWeek.getDay();
+      const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      startOfWeek.setDate(startOfWeek.getDate() - daysToMonday);
 
-      // 生成周的key
-      const weekKey = `${startOfWeek.getFullYear()}-W${Math.ceil((startOfWeek.getTime() - new Date(startOfWeek.getFullYear(), 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000))}`;
+      // 生成周的key - 使用更简单的方式
+      const weekKey = `${startOfWeek.getFullYear()}-${(startOfWeek.getMonth() + 1).toString().padStart(2, '0')}-W${startOfWeek.getDate()}`;
 
       if (!weekGroups.has(weekKey)) {
         weekGroups.set(weekKey, []);
@@ -195,7 +212,10 @@ export function ArchiveView({ entries, onEdit }: ArchiveViewProps) {
       const firstEntry = weekEntries[weekEntries.length - 1];
       const date = new Date(normalizeTimeString(firstEntry.created_at!));
       const startOfWeek = new Date(date);
-      startOfWeek.setDate(date.getDate() - date.getDay());
+      // 修正：以周一为一周的开始
+      const dayOfWeek = startOfWeek.getDay();
+      const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      startOfWeek.setDate(startOfWeek.getDate() - daysToMonday);
 
       // 生成周标题
       let weekTitle: string;
@@ -274,9 +294,12 @@ export function ArchiveView({ entries, onEdit }: ArchiveViewProps) {
       } else {
         // 按周分组
         const startOfWeek = new Date(date);
-        startOfWeek.setDate(date.getDate() - date.getDay());
+        // 修正：以周一为一周的开始
+        const dayOfWeek = startOfWeek.getDay();
+        const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+        startOfWeek.setDate(startOfWeek.getDate() - daysToMonday);
 
-        key = `${startOfWeek.getFullYear()}-W${Math.ceil((startOfWeek.getTime() - new Date(startOfWeek.getFullYear(), 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000))}`;
+        key = `${startOfWeek.getFullYear()}-${(startOfWeek.getMonth() + 1).toString().padStart(2, '0')}-W${startOfWeek.getDate()}`;
       }
 
       if (!groups.has(key)) {
