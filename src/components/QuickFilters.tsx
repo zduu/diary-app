@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Tag, Calendar, X } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Tag, Calendar, X, ChevronDown } from 'lucide-react';
 import { useThemeContext } from './ThemeProvider';
 import { useAdminAuth } from './AdminPanel';
 import { useQuickFiltersSettings } from '../hooks/useQuickFiltersSettings';
@@ -16,10 +16,12 @@ export function QuickFilters({ entries, onFilterResults, onClearFilter }: QuickF
   const { theme } = useThemeContext();
   const { isAdminAuthenticated } = useAdminAuth();
   const { settings: quickFiltersSettings, loading: settingsLoading } = useQuickFiltersSettings();
-  const [selectedTag, setSelectedTag] = useState('');
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [selectedYear, setSelectedYear] = useState('');
   const [selectedMonth, setSelectedMonth] = useState('');
   const [isMobile, setIsMobile] = useState(false);
+  const [isTagDropdownOpen, setIsTagDropdownOpen] = useState(false);
+  const tagDropdownRef = useRef<HTMLDivElement>(null);
 
   // 检测是否为移动设备
   useEffect(() => {
@@ -30,6 +32,18 @@ export function QuickFilters({ entries, onFilterResults, onClearFilter }: QuickF
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // 点击外部关闭标签下拉框
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (tagDropdownRef.current && !tagDropdownRef.current.contains(event.target as Node)) {
+        setIsTagDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   // 获取所有可用的标签
@@ -76,8 +90,8 @@ export function QuickFilters({ entries, onFilterResults, onClearFilter }: QuickF
   };
 
   // 执行过滤
-  const performFilter = (tag: string, year: string, month: string) => {
-    if (!tag && !year && !month) {
+  const performFilter = (tags: string[], year: string, month: string) => {
+    if (tags.length === 0 && !year && !month) {
       onClearFilter();
       return;
     }
@@ -86,18 +100,28 @@ export function QuickFilters({ entries, onFilterResults, onClearFilter }: QuickF
       // 跳过隐藏的日记
       if (entry.hidden) return false;
 
-      // 标签过滤
-      if (tag) {
-        if (tag === '__no_tags__') {
-          // 筛选无标签的日记
-          if (entry.tags && entry.tags.length > 0) {
-            return false;
+      // 标签过滤（多标签支持）
+      if (tags.length > 0) {
+        let tagMatched = false;
+
+        for (const tag of tags) {
+          if (tag === '__no_tags__') {
+            // 筛选无标签的日记
+            if (!entry.tags || entry.tags.length === 0) {
+              tagMatched = true;
+              break;
+            }
+          } else {
+            // 筛选有特定标签的日记
+            if (entry.tags && entry.tags.includes(tag)) {
+              tagMatched = true;
+              break;
+            }
           }
-        } else {
-          // 筛选有特定标签的日记
-          if (!entry.tags || !entry.tags.includes(tag)) {
-            return false;
-          }
+        }
+
+        if (!tagMatched) {
+          return false;
         }
       }
 
@@ -126,15 +150,28 @@ export function QuickFilters({ entries, onFilterResults, onClearFilter }: QuickF
 
   // 监听过滤条件变化
   useEffect(() => {
-    performFilter(selectedTag, selectedYear, selectedMonth);
-  }, [selectedTag, selectedYear, selectedMonth, entries]);
+    performFilter(selectedTags, selectedYear, selectedMonth);
+  }, [selectedTags, selectedYear, selectedMonth, entries]);
 
   // 清除所有过滤
   const handleClearAll = () => {
-    setSelectedTag('');
+    setSelectedTags([]);
     setSelectedYear('');
     setSelectedMonth('');
     onClearFilter();
+  };
+
+  // 切换标签选择状态
+  const toggleTag = (tag: string) => {
+    setSelectedTags(prev => {
+      if (prev.includes(tag)) {
+        // 如果已选中，则取消选中
+        return prev.filter(t => t !== tag);
+      } else {
+        // 如果未选中，则添加到选中列表
+        return [...prev, tag];
+      }
+    });
   };
 
   // 只有管理员认证后且设置启用时才显示
@@ -142,7 +179,7 @@ export function QuickFilters({ entries, onFilterResults, onClearFilter }: QuickF
     return null;
   }
 
-  const hasActiveFilters = selectedTag || selectedYear || selectedMonth;
+  const hasActiveFilters = selectedTags.length > 0 || selectedYear || selectedMonth;
 
   return (
     <div className="space-y-4">
@@ -170,32 +207,111 @@ export function QuickFilters({ entries, onFilterResults, onClearFilter }: QuickF
       {/* 过滤选项 */}
       <div className={`grid ${isMobile ? 'grid-cols-1 gap-3' : 'grid-cols-3 gap-4'}`}>
         {/* 标签过滤 */}
-        <div className="space-y-2">
+        <div className="space-y-2" ref={tagDropdownRef}>
           <label className={`${isMobile ? 'text-xs' : 'text-sm'} font-medium flex items-center gap-2`} style={{ color: theme.colors.text }}>
             <Tag className="w-4 h-4" />
-            标签
+            标签 {selectedTags.length > 0 && `(${selectedTags.length})`}
           </label>
-          <select
-            value={selectedTag}
-            onChange={(e) => setSelectedTag(e.target.value)}
-            className={`w-full ${isMobile ? 'px-2 py-1.5 text-sm' : 'px-3 py-2'} rounded border focus:outline-none focus:ring-2 transition-all`}
-            style={{
-              backgroundColor: theme.mode === 'glass' 
-                ? 'rgba(255, 255, 255, 0.1)' 
-                : theme.colors.surface,
-              borderColor: theme.mode === 'glass' 
-                ? 'rgba(255, 255, 255, 0.3)' 
-                : theme.colors.border,
-              color: theme.mode === 'glass' ? 'white' : theme.colors.text,
-              '--tw-ring-color': theme.colors.primary,
-            } as React.CSSProperties}
-          >
-            <option value="">所有标签</option>
-            <option value="__no_tags__">📝 无标签 ({getNoTagsCount()})</option>
-            {getAllTags().map(tag => (
-              <option key={tag} value={tag}>#{tag}</option>
-            ))}
-          </select>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIsTagDropdownOpen(!isTagDropdownOpen)}
+              className={`w-full ${isMobile ? 'px-2 py-1.5 text-sm' : 'px-3 py-2'} rounded border focus:outline-none focus:ring-2 transition-all text-left flex items-center justify-between`}
+              style={{
+                backgroundColor: theme.mode === 'glass'
+                  ? 'rgba(255, 255, 255, 0.1)'
+                  : theme.colors.surface,
+                borderColor: theme.mode === 'glass'
+                  ? 'rgba(255, 255, 255, 0.3)'
+                  : theme.colors.border,
+                color: theme.mode === 'glass' ? 'white' : theme.colors.text,
+                '--tw-ring-color': theme.colors.primary,
+              } as React.CSSProperties}
+            >
+              <span className="truncate">
+                {selectedTags.length === 0
+                  ? '选择标签...'
+                  : selectedTags.length === 1
+                    ? selectedTags[0] === '__no_tags__' ? '📝 无标签' : `#${selectedTags[0]}`
+                    : `已选择 ${selectedTags.length} 个标签`
+                }
+              </span>
+              <ChevronDown className={`w-4 h-4 transition-transform ${isTagDropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {isTagDropdownOpen && (
+              <div
+                className="absolute z-50 w-full mt-1 rounded border shadow-lg max-h-60 overflow-y-auto"
+                style={{
+                  backgroundColor: theme.mode === 'glass'
+                    ? 'rgba(255, 255, 255, 0.95)'
+                    : theme.colors.surface,
+                  borderColor: theme.mode === 'glass'
+                    ? 'rgba(255, 255, 255, 0.3)'
+                    : theme.colors.border,
+                  backdropFilter: theme.mode === 'glass' ? 'blur(10px)' : 'none',
+                }}
+              >
+                {/* 无标签选项 */}
+                <button
+                  type="button"
+                  onClick={() => toggleTag('__no_tags__')}
+                  className={`w-full px-3 py-2 text-left hover:bg-opacity-80 transition-colors flex items-center justify-between ${isMobile ? 'text-sm' : ''}`}
+                  style={{
+                    backgroundColor: selectedTags.includes('__no_tags__')
+                      ? `${theme.colors.primary}20`
+                      : 'transparent',
+                    color: theme.mode === 'glass' && !selectedTags.includes('__no_tags__') ? '#1f2937' : theme.colors.text,
+                  }}
+                >
+                  <span>📝 无标签 ({getNoTagsCount()})</span>
+                  {selectedTags.includes('__no_tags__') && (
+                    <div
+                      className="w-4 h-4 rounded-full flex items-center justify-center text-xs font-bold text-white"
+                      style={{ backgroundColor: theme.colors.primary }}
+                    >
+                      ✓
+                    </div>
+                  )}
+                </button>
+
+                {/* 标签选项 */}
+                {getAllTags().map(tag => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => toggleTag(tag)}
+                    className={`w-full px-3 py-2 text-left hover:bg-opacity-80 transition-colors flex items-center justify-between ${isMobile ? 'text-sm' : ''}`}
+                    style={{
+                      backgroundColor: selectedTags.includes(tag)
+                        ? `${theme.colors.primary}20`
+                        : 'transparent',
+                      color: theme.mode === 'glass' && !selectedTags.includes(tag) ? '#1f2937' : theme.colors.text,
+                    }}
+                  >
+                    <span>#{tag}</span>
+                    {selectedTags.includes(tag) && (
+                      <div
+                        className="w-4 h-4 rounded-full flex items-center justify-center text-xs font-bold text-white"
+                        style={{ backgroundColor: theme.colors.primary }}
+                      >
+                        ✓
+                      </div>
+                    )}
+                  </button>
+                ))}
+
+                {getAllTags().length === 0 && getNoTagsCount() === 0 && (
+                  <div
+                    className="px-3 py-2 text-center text-sm opacity-60"
+                    style={{ color: theme.mode === 'glass' ? '#6b7280' : theme.colors.textSecondary }}
+                  >
+                    暂无可用标签
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* 年份过滤 */}
@@ -263,8 +379,9 @@ export function QuickFilters({ entries, onFilterResults, onClearFilter }: QuickF
       {/* 活跃过滤器显示 */}
       {hasActiveFilters && (
         <div className="flex flex-wrap gap-2">
-          {selectedTag && (
+          {selectedTags.map(tag => (
             <span
+              key={tag}
               className={`flex items-center gap-1 ${isMobile ? 'text-xs px-2 py-1' : 'text-sm px-3 py-1'} rounded-full`}
               style={{
                 backgroundColor: `${theme.colors.primary}20`,
@@ -273,15 +390,15 @@ export function QuickFilters({ entries, onFilterResults, onClearFilter }: QuickF
               }}
             >
               <Tag className="w-3 h-3" />
-              {selectedTag === '__no_tags__' ? '📝 无标签' : `#${selectedTag}`}
+              {tag === '__no_tags__' ? '📝 无标签' : `#${tag}`}
               <button
-                onClick={() => setSelectedTag('')}
+                onClick={() => toggleTag(tag)}
                 className="hover:opacity-80 transition-opacity"
               >
                 <X className="w-3 h-3" />
               </button>
             </span>
-          )}
+          ))}
           {selectedYear && (
             <span
               className={`flex items-center gap-1 ${isMobile ? 'text-xs px-2 py-1' : 'text-sm px-3 py-1'} rounded-full`}
