@@ -98,14 +98,30 @@ export function ArchiveView({ entries, onEdit }: ArchiveViewProps) {
 
       const weekYear = startOfWeek.getFullYear();
 
-      // 计算当前周
+      // 计算当前周 - 使用本地时间
       const nowStartOfWeek = new Date(now);
       const nowDayOfWeek = nowStartOfWeek.getDay();
       const nowDaysToMonday = nowDayOfWeek === 0 ? 6 : nowDayOfWeek - 1;
       nowStartOfWeek.setDate(nowStartOfWeek.getDate() - nowDaysToMonday);
+      nowStartOfWeek.setHours(0, 0, 0, 0); // 设置为当天开始
 
-      const daysDiff = Math.floor((nowStartOfWeek.getTime() - startOfWeek.getTime()) / (24 * 60 * 60 * 1000));
+      // 将startOfWeek也设置为当天开始，避免时间部分的影响
+      const normalizedStartOfWeek = new Date(startOfWeek);
+      normalizedStartOfWeek.setHours(0, 0, 0, 0);
+
+      const daysDiff = Math.floor((nowStartOfWeek.getTime() - normalizedStartOfWeek.getTime()) / (24 * 60 * 60 * 1000));
       const weeksDiff = Math.floor(daysDiff / 7);
+
+      // 调试信息 - 临时添加
+      console.log('周计算调试:', {
+        date: date.toISOString(),
+        now: now.toISOString(),
+        startOfWeek: startOfWeek.toISOString(),
+        nowStartOfWeek: nowStartOfWeek.toISOString(),
+        normalizedStartOfWeek: normalizedStartOfWeek.toISOString(),
+        daysDiff,
+        weeksDiff
+      });
 
       if (weeksDiff === 0) return '本周';
       if (weeksDiff === 1) return '上周';
@@ -123,11 +139,27 @@ export function ArchiveView({ entries, onEdit }: ArchiveViewProps) {
           const monthNames = ['一月', '二月', '三月', '四月', '五月', '六月',
                              '七月', '八月', '九月', '十月', '十一月', '十二月'];
           // 修正：计算该月第几周的正确方法
+          // 获取该月第一天
           const firstDayOfMonth = new Date(startOfWeek.getFullYear(), startOfWeek.getMonth(), 1);
-          const firstDayOfWeekInMonth = firstDayOfMonth.getDay();
-          const firstMondayOfMonth = firstDayOfWeekInMonth === 0 ? 2 : (8 - firstDayOfWeekInMonth + 1);
-          const weekOfMonth = Math.floor((startOfWeek.getDate() - firstMondayOfMonth) / 7) + 1;
-          return `${monthNames[startOfWeek.getMonth()]}第${weekOfMonth}周`;
+          // 获取该月第一个周一的日期
+          const firstDayWeekday = firstDayOfMonth.getDay(); // 0=周日, 1=周一, ..., 6=周六
+          const daysToFirstMonday = firstDayWeekday === 1 ? 0 : (firstDayWeekday === 0 ? 1 : 8 - firstDayWeekday);
+          const firstMondayDate = 1 + daysToFirstMonday;
+
+          // 计算当前周一是该月的第几周
+          let weekOfMonth;
+          if (startOfWeek.getDate() < firstMondayDate) {
+            // 如果当前周一在该月第一个周一之前，属于第0周或上月
+            weekOfMonth = 0;
+          } else {
+            weekOfMonth = Math.floor((startOfWeek.getDate() - firstMondayDate) / 7) + 1;
+          }
+
+          if (weekOfMonth <= 0) {
+            return `${startOfWeek.getMonth() + 1}月${startOfWeek.getDate()}日那周`;
+          } else {
+            return `${monthNames[startOfWeek.getMonth()]}第${weekOfMonth}周`;
+          }
         } else {
           return `${startOfWeek.getMonth() + 1}月${startOfWeek.getDate()}日那周`;
         }
@@ -135,10 +167,22 @@ export function ArchiveView({ entries, onEdit }: ArchiveViewProps) {
 
       // 其他年份
       const firstDayOfMonth = new Date(startOfWeek.getFullYear(), startOfWeek.getMonth(), 1);
-      const firstDayOfWeekInMonth = firstDayOfMonth.getDay();
-      const firstMondayOfMonth = firstDayOfWeekInMonth === 0 ? 2 : (8 - firstDayOfWeekInMonth + 1);
-      const weekOfMonth = Math.floor((startOfWeek.getDate() - firstMondayOfMonth) / 7) + 1;
-      return `${weekYear}年${startOfWeek.getMonth() + 1}月第${weekOfMonth}周`;
+      const firstDayWeekday = firstDayOfMonth.getDay();
+      const daysToFirstMonday = firstDayWeekday === 1 ? 0 : (firstDayWeekday === 0 ? 1 : 8 - firstDayWeekday);
+      const firstMondayDate = 1 + daysToFirstMonday;
+
+      let weekOfMonth;
+      if (startOfWeek.getDate() < firstMondayDate) {
+        weekOfMonth = 0;
+      } else {
+        weekOfMonth = Math.floor((startOfWeek.getDate() - firstMondayDate) / 7) + 1;
+      }
+
+      if (weekOfMonth <= 0) {
+        return `${weekYear}年${startOfWeek.getMonth() + 1}月${startOfWeek.getDate()}日那周`;
+      } else {
+        return `${weekYear}年${startOfWeek.getMonth() + 1}月第${weekOfMonth}周`;
+      }
     }
 
     return key;
@@ -449,8 +493,8 @@ export function ArchiveView({ entries, onEdit }: ArchiveViewProps) {
               onChange={(e) => setUseNaturalTime(e.target.checked)}
               style={{ accentColor: theme.colors.primary }}
             />
-            <span className="text-sm" style={{ color: theme.colors.text }}>
-              自然语言时间
+            <span className="text-sm font-medium" style={{ color: useNaturalTime ? theme.colors.primary : theme.colors.text }}>
+              自然语言时间 {useNaturalTime ? '(本周、上周)' : '(七月第X周)'}
             </span>
           </label>
         </div>
