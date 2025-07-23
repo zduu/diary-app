@@ -72,7 +72,6 @@ npm install
 # 配置高德地图API（可选，用于精准位置识别）
 cp .env.example .env.local
 # 编辑 .env.local 文件，填入您的高德地图API密钥
-# 详细配置指南：docs/amap-api-setup.md
 
 # 本地开发（推荐）- 使用模拟数据
 npm start

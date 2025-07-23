@@ -9,7 +9,7 @@ import { QuickFilters } from './components/QuickFilters';
 import { ExportModal } from './components/ExportModal';
 import { ThemeProvider, useThemeContext } from './components/ThemeProvider';
 import { ThemeToggle } from './components/ThemeToggle';
-import { DevTools } from './components/DevTools';
+
 import { ViewModeToggle, ViewMode } from './components/ViewModeToggle';
 import { useDiary } from './hooks/useDiary';
 import { useExportSettings } from './hooks/useExportSettings';
@@ -430,8 +430,7 @@ function AppContent() {
         exportType={exportType}
       />
 
-      {/* Dev Tools */}
-      <DevTools />
+
       </div>
     </>
   );

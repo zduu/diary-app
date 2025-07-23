@@ -112,17 +112,6 @@ export function ArchiveView({ entries, onEdit }: ArchiveViewProps) {
       const daysDiff = Math.floor((nowStartOfWeek.getTime() - normalizedStartOfWeek.getTime()) / (24 * 60 * 60 * 1000));
       const weeksDiff = Math.floor(daysDiff / 7);
 
-      // 调试信息 - 临时添加
-      console.log('周计算调试:', {
-        date: date.toISOString(),
-        now: now.toISOString(),
-        startOfWeek: startOfWeek.toISOString(),
-        nowStartOfWeek: nowStartOfWeek.toISOString(),
-        normalizedStartOfWeek: normalizedStartOfWeek.toISOString(),
-        daysDiff,
-        weeksDiff
-      });
-
       if (weeksDiff === 0) return '本周';
       if (weeksDiff === 1) return '上周';
       if (weeksDiff === 2) return '上上周';

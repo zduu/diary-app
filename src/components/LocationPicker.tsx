@@ -970,48 +970,7 @@ export function LocationPicker({ location, onLocationChange, disabled }: Locatio
             地图选择
           </button>
 
-          {/* 测试按钮 - 仅在开发环境显示 */}
-          {import.meta.env.DEV && (
-            <button
-              type="button"
-              onClick={() => {
-                // 模拟一个详细的位置信息用于测试
-                const testLocation = {
-                  name: "星巴克咖啡(南京西路店)",
-                  latitude: 31.2304,
-                  longitude: 121.4737,
-                  address: "上海市静安区南京西路1376号上海商城",
-                  nearbyPOIs: [
-                    { name: "上海商城", type: "商场", distance: 50 },
-                    { name: "静安寺", type: "景点", distance: 200 },
-                    { name: "中信银行", type: "银行", distance: 120 },
-                    { name: "麦当劳", type: "快餐店", distance: 80 },
-                    { name: "地铁静安寺站", type: "地铁站", distance: 300 }
-                  ],
-                  details: {
-                    building: "上海商城",
-                    house_number: "1376",
-                    road: "南京西路",
-                    neighbourhood: "静安寺商圈",
-                    suburb: "静安区",
-                    city: "上海市",
-                    state: "上海",
-                    country: "中国"
-                  }
-                };
-                onLocationChange(testLocation);
-              }}
-              disabled={disabled}
-              className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium border transition-all duration-200 hover:opacity-80"
-              style={{
-                borderColor: theme.colors.primary,
-                color: theme.colors.primary,
-                backgroundColor: theme.colors.surface
-              }}
-            >
-              🧪 测试位置
-            </button>
-          )}
+
         </div>
       )}
 

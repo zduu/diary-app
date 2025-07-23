@@ -234,20 +234,12 @@ class ApiService {
   private useMockService = this.shouldUseMockService();
 
   constructor() {
-    console.log('🔧 API Service 初始化');
-    console.log('📊 环境信息:', {
-      isDev: import.meta.env.DEV,
-      mode: import.meta.env.MODE,
-      useMockAPI: import.meta.env.VITE_USE_MOCK_API,
-      forceLocal: localStorage.getItem('diary_force_local')
-    });
-    console.log(`🎯 使用 ${this.useMockService ? 'Mock' : '远程'} API 服务`);
+    // API Service 初始化完成
   }
 
   // 重置API服务状态
   resetApiService(): void {
     this.useMockService = this.shouldUseMockService();
-    console.log(`🔄 API服务已重置，当前使用: ${this.useMockService ? 'Mock' : '远程'} 服务`);
   }
 
   // 获取当前API服务状态
@@ -582,14 +574,12 @@ class ApiService {
   enableLocalMode(): void {
     this.useMockService = true;
     localStorage.setItem('diary_force_local', 'true');
-    console.log('已切换到本地Mock模式');
   }
 
   // 切换到远程模式
   enableRemoteMode(): void {
     this.useMockService = false;
     localStorage.removeItem('diary_force_local');
-    console.log('已切换到远程API模式');
   }
 
   // 获取当前模式
@@ -602,7 +592,6 @@ class ApiService {
     this.mockService = new MockApiService();
     localStorage.removeItem('diary_app_data');
     localStorage.removeItem('diary_app_settings');
-    console.log('本地数据已清除');
   }
 }
 

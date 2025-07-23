@@ -296,31 +296,7 @@ export function getLocationWithConversion(
   });
 }
 
-/**
- * 诊断坐标转换效果
- */
-export function diagnoseCoordinateConversion(lat: number, lng: number) {
-  console.group('🗺️ 坐标转换诊断');
 
-  const wgs84 = { lat, lng };
-  const gcj02 = wgs84ToGcj02(lat, lng);
-  const bd09 = gcj02ToBd09(gcj02.latitude, gcj02.longitude);
-
-  console.log('原始坐标 (WGS84):', wgs84);
-  console.log('高德坐标 (GCJ02):', { lat: gcj02.latitude, lng: gcj02.longitude });
-  console.log('百度坐标 (BD09):', { lat: bd09.latitude, lng: bd09.longitude });
-
-  console.log('WGS84->GCJ02 偏移:', `${gcj02.offset?.distance.toFixed(1)}米`);
-  console.log('GCJ02->BD09 偏移:', `${bd09.offset?.distance.toFixed(1)}米`);
-
-  if (gcj02.offset && gcj02.offset.distance > 500) {
-    console.warn('⚠️ 坐标偏移较大，建议检查是否在中国境内');
-  }
-
-  console.groupEnd();
-
-  return { wgs84, gcj02, bd09 };
-}
 
 /**
  * 高精度定位接口
