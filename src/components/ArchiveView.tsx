@@ -10,12 +10,20 @@ interface ArchiveViewProps {
   onEdit?: (entry: DiaryEntry) => void;
 }
 
+interface ArchiveSubGroup {
+  key: string;
+  title: string;
+  entries: DiaryEntry[];
+  count: number;
+}
+
 interface ArchiveGroup {
   key: string;
   title: string;
   period: string;
   entries: DiaryEntry[];
   count: number;
+  subGroups?: ArchiveSubGroup[]; // 子分组（用于月份下的周分组）
 }
 
 type ArchiveDisplayMode = 'list' | 'cards' | 'compact' | 'timeline';
@@ -24,6 +32,7 @@ type ArchiveHeaderStyle = 'simple' | 'minimal' | 'timeline' | 'badge';
 export function ArchiveView({ entries, onEdit }: ArchiveViewProps) {
   const { theme } = useThemeContext();
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [expandedSubGroups, setExpandedSubGroups] = useState<Set<string>>(new Set());
   const [displayMode, setDisplayMode] = useState<ArchiveDisplayMode>('cards');
   const [headerStyle, setHeaderStyle] = useState<ArchiveHeaderStyle>('simple');
   const [useNaturalTime, setUseNaturalTime] = useState(true);
@@ -96,7 +105,9 @@ export function ArchiveView({ entries, onEdit }: ArchiveViewProps) {
       if (weeksDiff === 0) return '本周';
       if (weeksDiff === 1) return '上周';
       if (weeksDiff === 2) return '上上周';
-      if (weeksDiff >= 3 && weeksDiff <= 4) return '几周前';
+      if (weeksDiff === 3) return '3周前';
+      if (weeksDiff === 4) return '4周前';
+      if (weeksDiff >= 5 && weeksDiff <= 8) return `${weeksDiff}周前`;
 
       // 同年的其他周
       if (weekYear === currentYear) {
@@ -119,6 +130,100 @@ export function ArchiveView({ entries, onEdit }: ArchiveViewProps) {
     return key;
   };
 
+  // 创建月子分组的辅助函数（用于年份分组）
+  const createMonthSubGroups = (entries: DiaryEntry[]): ArchiveSubGroup[] => {
+    const monthGroups = new Map<string, DiaryEntry[]>();
+
+    entries.forEach(entry => {
+      const date = new Date(normalizeTimeString(entry.created_at!));
+      const monthKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+
+      if (!monthGroups.has(monthKey)) {
+        monthGroups.set(monthKey, []);
+      }
+      monthGroups.get(monthKey)!.push(entry);
+    });
+
+    return Array.from(monthGroups.entries()).map(([monthKey, monthEntries]) => {
+      const firstEntry = monthEntries[monthEntries.length - 1];
+      const date = new Date(normalizeTimeString(firstEntry.created_at!));
+
+      // 生成月份标题
+      let monthTitle: string;
+      if (useNaturalTime) {
+        monthTitle = getNaturalTimeExpression(date, 'month', monthKey);
+      } else {
+        monthTitle = `${date.getFullYear()}年${date.getMonth() + 1}月`;
+      }
+
+      return {
+        key: monthKey,
+        title: monthTitle,
+        entries: monthEntries.sort((a, b) =>
+          new Date(normalizeTimeString(b.created_at!)).getTime() -
+          new Date(normalizeTimeString(a.created_at!)).getTime()
+        ),
+        count: monthEntries.length
+      };
+    }).sort((a, b) => {
+      // 按月份时间倒序排列
+      const aDate = new Date(normalizeTimeString(a.entries[a.entries.length - 1].created_at!));
+      const bDate = new Date(normalizeTimeString(b.entries[b.entries.length - 1].created_at!));
+      return bDate.getTime() - aDate.getTime();
+    });
+  };
+
+  // 创建周子分组的辅助函数
+  const createWeekSubGroups = (entries: DiaryEntry[]): ArchiveSubGroup[] => {
+    const weekGroups = new Map<string, DiaryEntry[]>();
+
+    entries.forEach(entry => {
+      const date = new Date(normalizeTimeString(entry.created_at!));
+      const startOfWeek = new Date(date);
+      startOfWeek.setDate(date.getDate() - date.getDay());
+
+      // 生成周的key
+      const weekKey = `${startOfWeek.getFullYear()}-W${Math.ceil((startOfWeek.getTime() - new Date(startOfWeek.getFullYear(), 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000))}`;
+
+      if (!weekGroups.has(weekKey)) {
+        weekGroups.set(weekKey, []);
+      }
+      weekGroups.get(weekKey)!.push(entry);
+    });
+
+    return Array.from(weekGroups.entries()).map(([weekKey, weekEntries]) => {
+      const firstEntry = weekEntries[weekEntries.length - 1];
+      const date = new Date(normalizeTimeString(firstEntry.created_at!));
+      const startOfWeek = new Date(date);
+      startOfWeek.setDate(date.getDate() - date.getDay());
+
+      // 生成周标题
+      let weekTitle: string;
+      if (useNaturalTime) {
+        weekTitle = getNaturalTimeExpression(date, 'week', weekKey);
+      } else {
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(startOfWeek.getDate() + 6);
+        weekTitle = `${startOfWeek.getMonth() + 1}月${startOfWeek.getDate()}日-${endOfWeek.getMonth() + 1}月${endOfWeek.getDate()}日`;
+      }
+
+      return {
+        key: weekKey,
+        title: weekTitle,
+        entries: weekEntries.sort((a, b) =>
+          new Date(normalizeTimeString(b.created_at!)).getTime() -
+          new Date(normalizeTimeString(a.created_at!)).getTime()
+        ),
+        count: weekEntries.length
+      };
+    }).sort((a, b) => {
+      // 按周的时间倒序排列
+      const aDate = new Date(normalizeTimeString(a.entries[a.entries.length - 1].created_at!));
+      const bDate = new Date(normalizeTimeString(b.entries[b.entries.length - 1].created_at!));
+      return bDate.getTime() - aDate.getTime();
+    });
+  };
+
   // 智能分组逻辑
   const createArchiveGroups = (): ArchiveGroup[] => {
     if (visibleEntries.length === 0) return [];
@@ -134,11 +239,23 @@ export function ArchiveView({ entries, onEdit }: ArchiveViewProps) {
     const lastEntry = new Date(normalizeTimeString(sortedEntries[0].created_at!));
     const timeSpanDays = Math.ceil((lastEntry.getTime() - firstEntry.getTime()) / (1000 * 60 * 60 * 24));
 
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+
     let groupBy: 'year' | 'month' | 'week';
 
-    if (timeSpanDays >= 365) {
+    // 智能分组逻辑：
+    // 1. 如果跨度超过1年，或者包含去年的数据，按年分组
+    // 2. 如果跨度超过2个月，或者包含上个月已结束的数据，按月分组
+    // 3. 否则按周分组
+    if (timeSpanDays >= 365 || firstEntry.getFullYear() < currentYear) {
       groupBy = 'year';
-    } else if (timeSpanDays >= 30) {
+    } else if (timeSpanDays >= 60 ||
+               (firstEntry.getFullYear() === currentYear &&
+                firstEntry.getMonth() < currentMonth - 1) ||
+               (firstEntry.getMonth() < currentMonth &&
+                now.getDate() > 7)) { // 当前月过了一周，上个月按月归纳
       groupBy = 'month';
     } else {
       groupBy = 'week';
@@ -174,6 +291,7 @@ export function ArchiveView({ entries, onEdit }: ArchiveViewProps) {
 
       let groupTitle: string;
       let groupPeriod: string;
+      let subGroups: ArchiveSubGroup[] | undefined;
 
       if (useNaturalTime) {
         // 使用自然语言表达
@@ -196,8 +314,20 @@ export function ArchiveView({ entries, onEdit }: ArchiveViewProps) {
 
       if (groupBy === 'year') {
         groupPeriod = '年度';
+        // 为年份分组创建月子分组
+        subGroups = createMonthSubGroups(groupEntries);
       } else if (groupBy === 'month') {
         groupPeriod = '月度';
+        // 只为本月的分组创建周子分组
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        const currentMonth = now.getMonth();
+        const groupYear = date.getFullYear();
+        const groupMonth = date.getMonth();
+
+        if (groupYear === currentYear && groupMonth === currentMonth) {
+          subGroups = createWeekSubGroups(groupEntries);
+        }
       } else {
         groupPeriod = '周度';
       }
@@ -207,7 +337,8 @@ export function ArchiveView({ entries, onEdit }: ArchiveViewProps) {
         title: groupTitle,
         period: groupPeriod,
         entries: groupEntries,
-        count: groupEntries.length
+        count: groupEntries.length,
+        subGroups
       };
     });
   };
@@ -222,6 +353,16 @@ export function ArchiveView({ entries, onEdit }: ArchiveViewProps) {
       newExpanded.add(groupKey);
     }
     setExpandedGroups(newExpanded);
+  };
+
+  const toggleSubGroup = (subGroupKey: string) => {
+    const newExpanded = new Set(expandedSubGroups);
+    if (newExpanded.has(subGroupKey)) {
+      newExpanded.delete(subGroupKey);
+    } else {
+      newExpanded.add(subGroupKey);
+    }
+    setExpandedSubGroups(newExpanded);
   };
 
   const formatEntryDate = (dateString: string) => {
@@ -547,22 +688,71 @@ export function ArchiveView({ entries, onEdit }: ArchiveViewProps) {
 
           {/* 分组内容 */}
           {expandedGroups.has(group.key) && (
-            <div className={`ml-6 ${displayMode === 'cards' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4' :
-                            displayMode === 'compact' ? 'space-y-1' :
-                            displayMode === 'timeline' ? 'space-y-4' : 'divide-y'}`}
-                 style={{ borderColor: displayMode === 'list' ? theme.colors.border : 'transparent' }}>
-              {group.entries.map((entry) => {
-                switch (displayMode) {
-                  case 'cards':
-                    return renderCardEntry({ entry, onEdit, isMobile });
-                  case 'compact':
-                    return renderCompactEntry({ entry, onEdit, isMobile });
-                  case 'timeline':
-                    return renderTimelineEntry({ entry, onEdit, isMobile });
-                  default:
-                    return renderListEntry(entry);
-                }
-              })}
+            <div className="ml-6">
+              {group.subGroups && group.subGroups.length > 0 ? (
+                // 有子分组时显示子分组
+                <div className="space-y-4">
+                  {group.subGroups.map((subGroup) => (
+                    <div key={subGroup.key} className="space-y-2">
+                      {/* 子分组标题 */}
+                      <button
+                        onClick={() => toggleSubGroup(subGroup.key)}
+                        className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                      >
+                        {expandedSubGroups.has(subGroup.key) ? (
+                          <ChevronDown className="w-3 h-3" style={{ color: theme.colors.primary }} />
+                        ) : (
+                          <ChevronRight className="w-3 h-3" style={{ color: theme.colors.primary }} />
+                        )}
+                        <span className="text-sm font-medium"
+                              style={{ color: theme.mode === 'glass' ? 'rgba(255, 255, 255, 0.9)' : theme.colors.text }}>
+                          {subGroup.title} ({subGroup.count})
+                        </span>
+                      </button>
+
+                      {/* 子分组内容 */}
+                      {expandedSubGroups.has(subGroup.key) && (
+                        <div className={`ml-4 ${displayMode === 'cards' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4' :
+                                        displayMode === 'compact' ? 'space-y-1' :
+                                        displayMode === 'timeline' ? 'space-y-4' : 'divide-y'}`}
+                             style={{ borderColor: displayMode === 'list' ? theme.colors.border : 'transparent' }}>
+                          {subGroup.entries.map((entry) => {
+                            switch (displayMode) {
+                              case 'cards':
+                                return renderCardEntry({ entry, onEdit, isMobile });
+                              case 'compact':
+                                return renderCompactEntry({ entry, onEdit, isMobile });
+                              case 'timeline':
+                                return renderTimelineEntry({ entry, onEdit, isMobile });
+                              default:
+                                return renderListEntry(entry);
+                            }
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                // 没有子分组时直接显示条目
+                <div className={`${displayMode === 'cards' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4' :
+                                displayMode === 'compact' ? 'space-y-1' :
+                                displayMode === 'timeline' ? 'space-y-4' : 'divide-y'}`}
+                     style={{ borderColor: displayMode === 'list' ? theme.colors.border : 'transparent' }}>
+                  {group.entries.map((entry) => {
+                    switch (displayMode) {
+                      case 'cards':
+                        return renderCardEntry({ entry, onEdit, isMobile });
+                      case 'compact':
+                        return renderCompactEntry({ entry, onEdit, isMobile });
+                      case 'timeline':
+                        return renderTimelineEntry({ entry, onEdit, isMobile });
+                      default:
+                        return renderListEntry(entry);
+                    }
+                  })}
+                </div>
+              )}
             </div>
           )}
         </div>
