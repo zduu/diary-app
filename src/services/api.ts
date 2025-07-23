@@ -11,9 +11,17 @@ class MockApiService {
   private getStoredEntries(): DiaryEntry[] {
     try {
       const data = localStorage.getItem(this.STORAGE_KEY);
-      return data ? JSON.parse(data) : this.getDefaultEntries();
+      if (data) {
+        return JSON.parse(data);
+      }
+
+      // 检查是否禁用默认数据
+      const disableDefaults = localStorage.getItem('diary_disable_defaults') === 'true';
+      return disableDefaults ? [] : this.getDefaultEntries();
     } catch {
-      return this.getDefaultEntries();
+      // 检查是否禁用默认数据
+      const disableDefaults = localStorage.getItem('diary_disable_defaults') === 'true';
+      return disableDefaults ? [] : this.getDefaultEntries();
     }
   }
 
@@ -167,12 +175,13 @@ class MockApiService {
     this.saveEntries(filteredEntries);
   }
 
-  async batchImportEntries(newEntries: DiaryEntry[]): Promise<DiaryEntry[]> {
+  async batchImportEntries(newEntries: DiaryEntry[], options?: { overwrite?: boolean }): Promise<DiaryEntry[]> {
     await new Promise(resolve => setTimeout(resolve, 200));
 
-    const entries = this.getStoredEntries();
+    const existingEntries = this.getStoredEntries();
     const importedEntries: DiaryEntry[] = [];
 
+    // 先处理所有导入的条目
     for (const entry of newEntries) {
       const newEntry: DiaryEntry = {
         ...entry,
@@ -180,11 +189,27 @@ class MockApiService {
         created_at: entry.created_at || new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
-      entries.unshift(newEntry);
       importedEntries.push(newEntry);
     }
 
-    this.saveEntries(entries);
+    let finalEntries: DiaryEntry[];
+
+    if (options?.overwrite) {
+      // 覆盖模式：只保留导入的数据，清除现有数据（包括默认数据）
+      finalEntries = [...importedEntries];
+      // 设置标志，避免重新显示默认数据
+      localStorage.setItem('diary_disable_defaults', 'true');
+    } else {
+      // 合并模式：将导入的条目添加到现有条目中
+      finalEntries = [...existingEntries, ...importedEntries];
+    }
+
+    // 按创建时间倒序排序，确保最新的在最前面
+    finalEntries.sort((a, b) =>
+      new Date(b.created_at!).getTime() - new Date(a.created_at!).getTime()
+    );
+
+    this.saveEntries(finalEntries);
     return importedEntries;
   }
 
@@ -469,15 +494,15 @@ class ApiService {
   }
 
   // 批量导入日记
-  async batchImportEntries(entries: DiaryEntry[]): Promise<DiaryEntry[]> {
+  async batchImportEntries(entries: DiaryEntry[], options?: { overwrite?: boolean }): Promise<DiaryEntry[]> {
     if (this.useMockService) {
-      return this.mockService.batchImportEntries(entries);
+      return this.mockService.batchImportEntries(entries, options);
     }
 
     try {
       const response = await this.request<DiaryEntry[]>('/entries/batch', {
         method: 'POST',
-        body: JSON.stringify({ entries }),
+        body: JSON.stringify({ entries, options }),
       });
 
       if (!response.success || !response.data) {
@@ -488,7 +513,7 @@ class ApiService {
     } catch (error) {
       console.warn('远程API调用失败，切换到本地Mock服务:', error);
       this.useMockService = true;
-      return this.mockService.batchImportEntries(entries);
+      return this.mockService.batchImportEntries(entries, options);
     }
   }
 
@@ -592,6 +617,17 @@ class ApiService {
     this.mockService = new MockApiService();
     localStorage.removeItem('diary_app_data');
     localStorage.removeItem('diary_app_settings');
+    // 清除数据后禁用默认数据，避免重新显示示例数据
+    localStorage.setItem('diary_disable_defaults', 'true');
+  }
+
+  // 启用/禁用默认示例数据
+  setDefaultDataEnabled(enabled: boolean): void {
+    if (enabled) {
+      localStorage.removeItem('diary_disable_defaults');
+    } else {
+      localStorage.setItem('diary_disable_defaults', 'true');
+    }
   }
 }
 

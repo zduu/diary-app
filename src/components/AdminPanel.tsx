@@ -259,17 +259,18 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
       try {
         const data = JSON.parse(event.target?.result as string);
         if (data.entries && Array.isArray(data.entries)) {
-          const confirmImport = window.confirm(
-            `确定要导入 ${data.entries.length} 条日记吗？这将覆盖现有数据！`
-          );
-          if (confirmImport) {
-            try {
-              await apiService.batchImportEntries(data.entries);
-              onEntriesUpdate(); // 刷新数据
-              alert('导入成功！');
-            } catch (error) {
-              alert('导入失败：' + (error instanceof Error ? error.message : '未知错误'));
-            }
+          // 显示导入模式选择对话框
+          const importMode = await showImportModeDialog(data.entries.length, entries.length);
+          if (importMode === null) return; // 用户取消
+
+          try {
+            await apiService.batchImportEntries(data.entries, { overwrite: importMode === 'overwrite' });
+            onEntriesUpdate(); // 刷新数据
+
+            const modeText = importMode === 'overwrite' ? '覆盖导入' : '合并导入';
+            alert(`${modeText}成功！已导入 ${data.entries.length} 条日记。`);
+          } catch (error) {
+            alert('导入失败：' + (error instanceof Error ? error.message : '未知错误'));
           }
         } else {
           alert('无效的备份文件格式！');
@@ -279,6 +280,140 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
       }
     };
     reader.readAsText(file);
+  };
+
+  // 显示导入模式选择对话框
+  const showImportModeDialog = (importCount: number, existingCount: number): Promise<'merge' | 'overwrite' | null> => {
+    return new Promise((resolve) => {
+      const dialog = document.createElement('div');
+      dialog.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        font-family: system-ui, -apple-system, sans-serif;
+      `;
+
+      dialog.innerHTML = `
+        <div style="
+          background: white;
+          border-radius: 12px;
+          padding: 24px;
+          max-width: 480px;
+          width: 90%;
+          box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        ">
+          <h3 style="margin: 0 0 16px 0; font-size: 18px; font-weight: 600; color: #1f2937;">
+            选择导入模式
+          </h3>
+          <p style="margin: 0 0 20px 0; color: #6b7280; line-height: 1.5;">
+            即将导入 <strong>${importCount}</strong> 条日记，当前已有 <strong>${existingCount}</strong> 条日记。
+          </p>
+
+          <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px;">
+            <label style="
+              display: flex;
+              align-items: flex-start;
+              gap: 12px;
+              padding: 16px;
+              border: 2px solid #e5e7eb;
+              border-radius: 8px;
+              cursor: pointer;
+              transition: all 0.2s;
+            " onmouseover="this.style.borderColor='#3b82f6'; this.style.backgroundColor='#f8fafc';"
+               onmouseout="this.style.borderColor='#e5e7eb'; this.style.backgroundColor='white';">
+              <input type="radio" name="importMode" value="merge" checked style="margin-top: 2px;">
+              <div>
+                <div style="font-weight: 600; color: #1f2937; margin-bottom: 4px;">
+                  🔗 合并导入（推荐）
+                </div>
+                <div style="color: #6b7280; font-size: 14px; line-height: 1.4;">
+                  保留现有的 ${existingCount} 条日记，添加新的 ${importCount} 条日记
+                </div>
+              </div>
+            </label>
+
+            <label style="
+              display: flex;
+              align-items: flex-start;
+              gap: 12px;
+              padding: 16px;
+              border: 2px solid #e5e7eb;
+              border-radius: 8px;
+              cursor: pointer;
+              transition: all 0.2s;
+            " onmouseover="this.style.borderColor='#ef4444'; this.style.backgroundColor='#fef2f2';"
+               onmouseout="this.style.borderColor='#e5e7eb'; this.style.backgroundColor='white';">
+              <input type="radio" name="importMode" value="overwrite" style="margin-top: 2px;">
+              <div>
+                <div style="font-weight: 600; color: #1f2937; margin-bottom: 4px;">
+                  🔄 覆盖导入
+                </div>
+                <div style="color: #6b7280; font-size: 14px; line-height: 1.4;">
+                  删除现有的所有日记，只保留导入的 ${importCount} 条日记
+                </div>
+              </div>
+            </label>
+          </div>
+
+          <div style="display: flex; gap: 12px; justify-content: flex-end;">
+            <button id="cancelBtn" style="
+              padding: 8px 16px;
+              border: 1px solid #d1d5db;
+              background: white;
+              color: #374151;
+              border-radius: 6px;
+              cursor: pointer;
+              font-size: 14px;
+            ">取消</button>
+            <button id="confirmBtn" style="
+              padding: 8px 16px;
+              border: none;
+              background: #3b82f6;
+              color: white;
+              border-radius: 6px;
+              cursor: pointer;
+              font-size: 14px;
+              font-weight: 500;
+            ">确认导入</button>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(dialog);
+
+      const cancelBtn = dialog.querySelector('#cancelBtn');
+      const confirmBtn = dialog.querySelector('#confirmBtn');
+
+      const cleanup = () => {
+        document.body.removeChild(dialog);
+      };
+
+      cancelBtn?.addEventListener('click', () => {
+        cleanup();
+        resolve(null);
+      });
+
+      confirmBtn?.addEventListener('click', () => {
+        const selectedMode = dialog.querySelector('input[name="importMode"]:checked') as HTMLInputElement;
+        cleanup();
+        resolve(selectedMode?.value as 'merge' | 'overwrite');
+      });
+
+      // 点击背景关闭
+      dialog.addEventListener('click', (e) => {
+        if (e.target === dialog) {
+          cleanup();
+          resolve(null);
+        }
+      });
+    });
   };
 
   // 操作状态管理
