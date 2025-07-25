@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Eye, Edit, Type, Bold, Italic, List, Link, Image, Code } from 'lucide-react';
 import { useThemeContext } from './ThemeProvider';
 import { MarkdownRenderer } from './MarkdownRenderer';
@@ -12,24 +12,69 @@ interface MarkdownEditorProps {
 export function MarkdownEditor({ value, onChange, placeholder }: MarkdownEditorProps) {
   const { theme } = useThemeContext();
   const [mode, setMode] = useState<'edit' | 'preview' | 'split'>('edit');
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [isComponentMounted, setIsComponentMounted] = useState(false);
 
-  const insertMarkdown = (before: string, after: string = '') => {
-    const textarea = document.querySelector('textarea') as HTMLTextAreaElement;
+  // 组件挂载状态管理
+  useEffect(() => {
+    setIsComponentMounted(true);
+    return () => {
+      setIsComponentMounted(false);
+    };
+  }, []);
+
+  const insertMarkdown = useCallback((before: string, after: string = '') => {
+    if (!isComponentMounted) return;
+
+    const textarea = textareaRef.current;
     if (!textarea) return;
 
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const selectedText = value.substring(start, end);
-    const newText = value.substring(0, start) + before + selectedText + after + value.substring(end);
-    
-    onChange(newText);
-    
-    // 重新设置光标位置
-    setTimeout(() => {
-      textarea.focus();
-      textarea.setSelectionRange(start + before.length, start + before.length + selectedText.length);
-    }, 0);
-  };
+    try {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const selectedText = value.substring(start, end);
+      const newText = value.substring(0, start) + before + selectedText + after + value.substring(end);
+
+      onChange(newText);
+
+      // 重新设置光标位置
+      setTimeout(() => {
+        if (isComponentMounted && textarea) {
+          textarea.focus();
+          textarea.setSelectionRange(start + before.length, start + before.length + selectedText.length);
+        }
+      }, 0);
+    } catch (error) {
+      console.error('插入Markdown语法失败:', error);
+    }
+  }, [value, onChange, isComponentMounted]);
+
+  const handleModeChange = useCallback((e: React.MouseEvent, newMode: 'edit' | 'preview' | 'split') => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    try {
+      // 确保组件已挂载
+      if (!isComponentMounted) {
+        console.warn('组件未挂载，无法切换模式');
+        return;
+      }
+
+      // 防止重复设置相同模式
+      if (mode === newMode) return;
+
+      // 在切换到预览或分屏模式前，确保内容是有效的
+      if ((newMode === 'preview' || newMode === 'split') && !value) {
+        console.warn('内容为空，无法切换到预览模式');
+        return;
+      }
+
+      setMode(newMode);
+    } catch (error) {
+      console.error('切换编辑模式失败:', error);
+      // 如果切换失败，保持当前模式
+    }
+  }, [mode, value, isComponentMounted]);
 
   const toolbarButtons = [
     { icon: Bold, action: () => insertMarkdown('**', '**'), title: '粗体' },
@@ -40,6 +85,19 @@ export function MarkdownEditor({ value, onChange, placeholder }: MarkdownEditorP
     { icon: Image, action: () => insertMarkdown('![', '](image-url)'), title: '图片' },
     { icon: Code, action: () => insertMarkdown('`', '`'), title: '代码' },
   ];
+
+  // 如果组件未挂载，显示加载状态
+  if (!isComponentMounted) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-center p-8">
+          <div className="text-sm" style={{ color: theme.colors.textSecondary }}>
+            正在加载编辑器...
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -65,7 +123,8 @@ export function MarkdownEditor({ value, onChange, placeholder }: MarkdownEditorP
         {/* 模式切换 */}
         <div className="flex items-center gap-1 p-1 rounded-lg" style={{ backgroundColor: theme.colors.surface }}>
           <button
-            onClick={() => setMode('edit')}
+            type="button"
+            onClick={(e) => handleModeChange(e, 'edit')}
             className={`px-3 py-1 rounded text-sm transition-colors ${
               mode === 'edit' ? 'font-medium' : ''
             }`}
@@ -78,7 +137,8 @@ export function MarkdownEditor({ value, onChange, placeholder }: MarkdownEditorP
             编辑
           </button>
           <button
-            onClick={() => setMode('preview')}
+            type="button"
+            onClick={(e) => handleModeChange(e, 'preview')}
             className={`px-3 py-1 rounded text-sm transition-colors ${
               mode === 'preview' ? 'font-medium' : ''
             }`}
@@ -91,7 +151,8 @@ export function MarkdownEditor({ value, onChange, placeholder }: MarkdownEditorP
             预览
           </button>
           <button
-            onClick={() => setMode('split')}
+            type="button"
+            onClick={(e) => handleModeChange(e, 'split')}
             className={`px-3 py-1 rounded text-sm transition-colors ${
               mode === 'split' ? 'font-medium' : ''
             }`}
@@ -111,6 +172,7 @@ export function MarkdownEditor({ value, onChange, placeholder }: MarkdownEditorP
         {(mode === 'edit' || mode === 'split') && (
           <div>
             <textarea
+              ref={textareaRef}
               value={value}
               onChange={(e) => onChange(e.target.value)}
               placeholder={placeholder || '开始写作...支持 Markdown 语法'}
@@ -127,17 +189,10 @@ export function MarkdownEditor({ value, onChange, placeholder }: MarkdownEditorP
 
         {/* 预览区域 */}
         {(mode === 'preview' || mode === 'split') && (
-          <div
-            className="h-96 p-4 rounded-lg border overflow-y-auto"
-            style={{
-              backgroundColor: theme.colors.surface,
-              borderColor: theme.colors.border,
-            }}
-          >
-            <MarkdownRenderer
-              content={value || '*预览区域*\n\n在左侧编辑器中输入 Markdown 内容，这里会实时显示渲染结果。'}
-            />
-          </div>
+          <PreviewArea
+            value={value}
+            theme={theme}
+          />
         )}
       </div>
 
@@ -173,3 +228,20 @@ export function MarkdownEditor({ value, onChange, placeholder }: MarkdownEditorP
     </div>
   );
 }
+
+// 独立的预览区域组件，使用React.memo优化性能
+const PreviewArea = React.memo(({ value, theme }: { value: string; theme: any }) => {
+  const previewContent = value || '*预览区域*\n\n在左侧编辑器中输入 Markdown 内容，这里会实时显示渲染结果。';
+
+  return (
+    <div
+      className="h-96 p-4 rounded-lg border overflow-y-auto"
+      style={{
+        backgroundColor: theme.colors.surface,
+        borderColor: theme.colors.border,
+      }}
+    >
+      <MarkdownRenderer content={previewContent} />
+    </div>
+  );
+});

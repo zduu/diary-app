@@ -63,8 +63,12 @@ function AppContent() {
       } else {
         await createEntry(entryData);
       }
+      // 先关闭对话框，然后清理状态
       setIsFormOpen(false);
-      setEditingEntry(undefined);
+      // 延迟清理editingEntry，给组件时间完成清理
+      setTimeout(() => {
+        setEditingEntry(undefined);
+      }, 100);
     } catch (err) {
       alert(err instanceof Error ? err.message : '操作失败');
     }
@@ -78,8 +82,12 @@ function AppContent() {
 
 
   const handleCancel = () => {
+    // 先关闭对话框，然后清理状态
     setIsFormOpen(false);
-    setEditingEntry(undefined);
+    // 延迟清理editingEntry，给组件时间完成清理
+    setTimeout(() => {
+      setEditingEntry(undefined);
+    }, 100);
   };
 
   const handleSearchResults = (results: DiaryEntry[]) => {
@@ -407,6 +415,7 @@ function AppContent() {
 
       {/* Form Modal */}
       <DiaryForm
+        key={`diary-form-${editingEntry?.id || 'new'}-${isFormOpen}`}
         entry={editingEntry}
         onSave={handleSave}
         onCancel={handleCancel}

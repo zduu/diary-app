@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { X, MapPin, Search, Navigation, Loader } from 'lucide-react';
 import { LocationInfo } from '../types';
 import { useThemeContext } from './ThemeProvider';
@@ -343,7 +343,7 @@ export function MapLocationPicker({
     );
   };
 
-  console.log('🗺️ MapLocationPicker 渲染:', { isOpen });
+
 
   // 检测移动端
   useEffect(() => {
@@ -463,7 +463,7 @@ export function MapLocationPicker({
     }
   }, [isOpen, initialLocation]);
 
-  // 加载高德地图API
+  // 加载高德地图API - 只依赖isOpen状态
   useEffect(() => {
     if (!isOpen || isMapLoaded) return;
 
@@ -472,8 +472,6 @@ export function MapLocationPicker({
       console.error('高德地图API密钥未配置或不完整');
       return;
     }
-
-
 
     if (window.AMap) {
       initMap();
@@ -502,7 +500,41 @@ export function MapLocationPicker({
         placeSearchRef.current = null;
       }
     };
-  }, [isOpen, mapCenter, userLocation, theme.mode]);
+  }, [isOpen]); // 只依赖isOpen状态，避免频繁重新初始化
+
+  // 防抖的地图中心更新函数
+  const debouncedUpdateMapCenter = useCallback((center: [number, number]) => {
+    if (isMapLoaded && mapRef.current) {
+      try {
+        mapRef.current.setCenter(center);
+      } catch (error) {
+        console.error('🗺️ 更新地图中心失败:', error);
+      }
+    }
+  }, [isMapLoaded]);
+
+  // 单独处理地图中心更新，避免重新初始化整个地图
+  useEffect(() => {
+    if (mapCenter) {
+      const timeoutId = setTimeout(() => {
+        debouncedUpdateMapCenter(mapCenter);
+      }, 100); // 100ms防抖
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [mapCenter, debouncedUpdateMapCenter]);
+
+  // 单独处理主题更新
+  useEffect(() => {
+    if (isMapLoaded && mapRef.current) {
+      try {
+        const mapStyle = theme.mode === 'dark' ? 'amap://styles/dark' : 'amap://styles/normal';
+        mapRef.current.setMapStyle(mapStyle);
+      } catch (error) {
+        console.error('🗺️ 更新地图主题失败:', error);
+      }
+    }
+  }, [isMapLoaded, theme.mode]);
 
   // 地图点击事件
   const handleMapClick = async (e: any) => {

@@ -1012,16 +1012,18 @@ export function LocationPicker({ location, onLocationChange, disabled }: Locatio
         </div>
       )}
 
-      {/* 地图位置选择器 */}
-      <MapLocationPicker
-        isOpen={showMapPicker}
-        onClose={() => setShowMapPicker(false)}
-        onLocationSelect={(selectedLocation) => {
-          onLocationChange(selectedLocation);
-          setShowMapPicker(false);
-        }}
-        initialLocation={location ? { lat: location.latitude!, lng: location.longitude! } : null}
-      />
+      {/* 地图位置选择器 - 只在需要时渲染 */}
+      {showMapPicker && (
+        <MapLocationPicker
+          isOpen={showMapPicker}
+          onClose={() => setShowMapPicker(false)}
+          onLocationSelect={(selectedLocation) => {
+            onLocationChange(selectedLocation);
+            setShowMapPicker(false);
+          }}
+          initialLocation={location ? { lat: location.latitude!, lng: location.longitude! } : null}
+        />
+      )}
 
 
     </div>

@@ -52,6 +52,7 @@ export function DiaryForm({ entry, onSave, onCancel, isOpen }: DiaryFormProps) {
   const [loading, setLoading] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // 检测是否为移动设备
   useEffect(() => {
@@ -64,57 +65,71 @@ export function DiaryForm({ entry, onSave, onCancel, isOpen }: DiaryFormProps) {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  // 分离初始化逻辑，只在entry变化时执行
   useEffect(() => {
-    if (entry) {
-      setTitle(entry.title);
-      setContent(entry.content);
-      setContentType((entry.content_type as 'markdown' | 'plain') || 'markdown');
-
-      // 处理心情：检查是否为预定义选项
-      const entryMood = entry.mood || 'neutral';
-      const predefinedMood = moods.find(m => m.value === entryMood);
-      if (predefinedMood) {
-        setMood(entryMood);
-        setShowCustomMood(false);
-        setCustomMood('');
-      } else {
-        setMood('custom');
-        setShowCustomMood(true);
-        setCustomMood(entryMood);
-      }
-
-      // 处理天气：检查是否为预定义选项
-      const entryWeather = entry.weather || 'unknown';
-      const predefinedWeather = weathers.find(w => w.value === entryWeather);
-      if (predefinedWeather) {
-        setWeather(entryWeather);
-        setShowCustomWeather(false);
-        setCustomWeather('');
-      } else {
-        setWeather('custom');
-        setShowCustomWeather(true);
-        setCustomWeather(entryWeather);
-      }
-
-      setImages(entry.images || []);
-      setLocation(entry.location || null);
-      setTags(entry.tags || []);
-    } else {
-      setTitle('');
-      setContent('');
-      setContentType('markdown');
-      setMood('neutral');
-      setWeather('unknown');
-      setCustomMood('');
-      setCustomWeather('');
-      setShowCustomMood(false);
-      setShowCustomWeather(false);
-      setImages([]);
-      setLocation(null);
-      setTags([]);
+    if (!isOpen) {
+      setIsInitialized(false);
+      return; // 只在对话框打开时初始化
     }
-    setTagInput('');
-  }, [entry, isOpen]);
+
+    // 防止重复初始化
+    if (isInitialized && entry?.id === entry?.id) return;
+
+    try {
+      if (entry) {
+        setTitle(entry.title);
+        setContent(entry.content);
+        setContentType((entry.content_type as 'markdown' | 'plain') || 'markdown');
+
+        // 处理心情：检查是否为预定义选项
+        const entryMood = entry.mood || 'neutral';
+        const predefinedMood = moods.find(m => m.value === entryMood);
+        if (predefinedMood) {
+          setMood(entryMood);
+          setShowCustomMood(false);
+          setCustomMood('');
+        } else {
+          setMood('custom');
+          setShowCustomMood(true);
+          setCustomMood(entryMood);
+        }
+
+        // 处理天气：检查是否为预定义选项
+        const entryWeather = entry.weather || 'unknown';
+        const predefinedWeather = weathers.find(w => w.value === entryWeather);
+        if (predefinedWeather) {
+          setWeather(entryWeather);
+          setShowCustomWeather(false);
+          setCustomWeather('');
+        } else {
+          setWeather('custom');
+          setShowCustomWeather(true);
+          setCustomWeather(entryWeather);
+        }
+
+        setImages(entry.images || []);
+        setLocation(entry.location || null);
+        setTags(entry.tags || []);
+      } else {
+        setTitle('');
+        setContent('');
+        setContentType('markdown');
+        setMood('neutral');
+        setWeather('unknown');
+        setCustomMood('');
+        setCustomWeather('');
+        setShowCustomMood(false);
+        setShowCustomWeather(false);
+        setImages([]);
+        setLocation(null);
+        setTags([]);
+      }
+      setTagInput('');
+      setIsInitialized(true);
+    } catch (error) {
+      console.error('DiaryForm初始化失败:', error);
+    }
+  }, [entry?.id, isOpen]); // 只依赖entry的id和isOpen状态
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -179,6 +194,8 @@ export function DiaryForm({ entry, onSave, onCancel, isOpen }: DiaryFormProps) {
       setCustomWeather('');
     }
   };
+
+
 
   if (!isOpen) return null;
 
@@ -284,8 +301,9 @@ export function DiaryForm({ entry, onSave, onCancel, isOpen }: DiaryFormProps) {
             >
               📄 内容
             </label>
-            {contentType === 'markdown' && !isMobile ? (
+            {contentType === 'markdown' && !isMobile && isInitialized ? (
               <MarkdownEditor
+                key={`markdown-editor-${entry?.id || 'new'}`}
                 value={content}
                 onChange={setContent}
                 placeholder="使用 Markdown 语法记录你的想法和感受..."

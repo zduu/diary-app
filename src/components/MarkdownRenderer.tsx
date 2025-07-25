@@ -8,53 +8,77 @@ interface MarkdownRendererProps {
 
 // 简单的Markdown解析函数
 function parseMarkdown(content: string): string {
-  return content
-    // 标题
-    .replace(/^### (.*$)/gim, '<h3>$1</h3>')
-    .replace(/^## (.*$)/gim, '<h2>$1</h2>')
-    .replace(/^# (.*$)/gim, '<h1>$1</h1>')
-    // 粗体和斜体
-    .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
-    .replace(/\*(.*?)\*/gim, '<em>$1</em>')
-    // 行内代码
-    .replace(/`(.*?)`/gim, '<code>$1</code>')
-    // 链接
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/gim, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
-    // 图片
-    .replace(/!\[([^\]]*)\]\(([^)]+)\)/gim, '<img src="$2" alt="$1" />')
-    // 列表项
-    .replace(/^\- (.*$)/gim, '<li>$1</li>')
-    // 引用
-    .replace(/^> (.*$)/gim, '<blockquote>$1</blockquote>')
-    // 分割线
-    .replace(/^---$/gim, '<hr>')
-    // 换行
-    .replace(/\n/gim, '<br>');
+  try {
+    if (!content || typeof content !== 'string') {
+      return '';
+    }
+
+    return content
+      // 标题
+      .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+      .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+      .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+      // 粗体和斜体
+      .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/gim, '<em>$1</em>')
+      // 行内代码
+      .replace(/`(.*?)`/gim, '<code>$1</code>')
+      // 链接
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/gim, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+      // 图片
+      .replace(/!\[([^\]]*)\]\(([^)]+)\)/gim, '<img src="$2" alt="$1" />')
+      // 列表项
+      .replace(/^\- (.*$)/gim, '<li>$1</li>')
+      // 引用
+      .replace(/^> (.*$)/gim, '<blockquote>$1</blockquote>')
+      // 分割线
+      .replace(/^---$/gim, '<hr>')
+      // 换行
+      .replace(/\n/gim, '<br>');
+  } catch (error) {
+    console.error('Markdown解析失败:', error);
+    return content; // 返回原始内容
+  }
 }
 
 export function MarkdownRenderer({ content, className = '' }: MarkdownRendererProps) {
   const { theme } = useThemeContext();
 
-  // 如果内容包含Markdown语法，则解析；否则直接显示
-  const hasMarkdown = /[#*`\[\]>-]/.test(content);
-
-  if (!hasMarkdown) {
-    // 纯文本内容，保持换行
-    return (
-      <div
-        className={`prose prose-sm max-w-none ${className}`}
-        style={{ color: theme.colors.text }}
-      >
-        {content.split('\n').map((line, index) => (
-          <p key={index} className="mb-2 leading-relaxed">
-            {line || '\u00A0'}
+  try {
+    // 安全检查
+    if (!content || typeof content !== 'string') {
+      return (
+        <div
+          className={`prose prose-sm max-w-none ${className}`}
+          style={{ color: theme.colors.text }}
+        >
+          <p className="mb-2 leading-relaxed text-gray-400">
+            暂无内容
           </p>
-        ))}
-      </div>
-    );
-  }
+        </div>
+      );
+    }
 
-  const parsedContent = parseMarkdown(content);
+    // 如果内容包含Markdown语法，则解析；否则直接显示
+    const hasMarkdown = /[#*`\[\]>-]/.test(content);
+
+    if (!hasMarkdown) {
+      // 纯文本内容，保持换行
+      return (
+        <div
+          className={`prose prose-sm max-w-none ${className}`}
+          style={{ color: theme.colors.text }}
+        >
+          {content.split('\n').map((line, index) => (
+            <p key={index} className="mb-2 leading-relaxed">
+              {line || '\u00A0'}
+            </p>
+          ))}
+        </div>
+      );
+    }
+
+    const parsedContent = parseMarkdown(content);
 
   return (
     <div
@@ -151,4 +175,21 @@ export function MarkdownRenderer({ content, className = '' }: MarkdownRendererPr
       <div dangerouslySetInnerHTML={{ __html: parsedContent }} />
     </div>
   );
+  } catch (error) {
+    console.error('MarkdownRenderer渲染失败:', error);
+    // 降级到纯文本显示
+    return (
+      <div
+        className={`prose prose-sm max-w-none ${className}`}
+        style={{ color: theme.colors.text }}
+      >
+        <div className="p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800 mb-2">
+          ⚠️ Markdown渲染失败，显示原始内容
+        </div>
+        <pre className="whitespace-pre-wrap font-sans">
+          {content}
+        </pre>
+      </div>
+    );
+  }
 }
