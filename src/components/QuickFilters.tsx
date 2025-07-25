@@ -193,9 +193,17 @@ export function QuickFilters({ entries, onFilterResults, onClearFilter }: QuickF
             onClick={handleClearAll}
             className={`flex items-center gap-1 ${isMobile ? 'text-xs px-2 py-1' : 'text-sm px-3 py-1'} rounded-full transition-colors`}
             style={{
-              backgroundColor: `${theme.colors.accent}20`,
-              color: theme.colors.accent,
-              border: `1px solid ${theme.colors.accent}40`
+              backgroundColor: theme.mode === 'glass'
+                ? 'rgba(239, 68, 68, 0.4)'
+                : `${theme.colors.accent}20`,
+              color: theme.mode === 'glass'
+                ? '#ffffff'
+                : theme.colors.accent,
+              border: theme.mode === 'glass'
+                ? '1px solid rgba(239, 68, 68, 0.6)'
+                : `1px solid ${theme.colors.accent}40`,
+              textShadow: theme.mode === 'glass' ? '0 1px 2px rgba(0, 0, 0, 0.6)' : 'none',
+              backdropFilter: theme.mode === 'glass' ? 'blur(10px)' : 'none'
             }}
           >
             <X className="w-3 h-3" />
@@ -219,12 +227,14 @@ export function QuickFilters({ entries, onFilterResults, onClearFilter }: QuickF
               className={`w-full ${isMobile ? 'px-2 py-1.5 text-sm' : 'px-3 py-2'} rounded border focus:outline-none focus:ring-2 transition-all text-left flex items-center justify-between`}
               style={{
                 backgroundColor: theme.mode === 'glass'
-                  ? 'rgba(255, 255, 255, 0.1)'
+                  ? 'rgba(71, 85, 105, 0.7)'
                   : theme.colors.surface,
                 borderColor: theme.mode === 'glass'
-                  ? 'rgba(255, 255, 255, 0.3)'
+                  ? 'rgba(99, 102, 241, 0.4)'
                   : theme.colors.border,
                 color: theme.mode === 'glass' ? 'white' : theme.colors.text,
+                textShadow: theme.mode === 'glass' ? '0 1px 2px rgba(0, 0, 0, 0.5)' : 'none',
+                backdropFilter: theme.mode === 'glass' ? 'blur(10px)' : 'none',
                 '--tw-ring-color': theme.colors.primary,
               } as React.CSSProperties}
             >
@@ -244,12 +254,13 @@ export function QuickFilters({ entries, onFilterResults, onClearFilter }: QuickF
                 className="absolute z-50 w-full mt-1 rounded border shadow-lg max-h-60 overflow-y-auto"
                 style={{
                   backgroundColor: theme.mode === 'glass'
-                    ? 'rgba(255, 255, 255, 0.95)'
+                    ? 'rgba(99, 102, 241, 0.25)'
                     : theme.colors.surface,
                   borderColor: theme.mode === 'glass'
-                    ? 'rgba(255, 255, 255, 0.3)'
+                    ? 'rgba(99, 102, 241, 0.5)'
                     : theme.colors.border,
-                  backdropFilter: theme.mode === 'glass' ? 'blur(10px)' : 'none',
+                  backdropFilter: theme.mode === 'glass' ? 'blur(20px)' : 'none',
+                  boxShadow: theme.mode === 'glass' ? '0 8px 32px rgba(0, 0, 0, 0.3), 0 0 15px rgba(99, 102, 241, 0.3)' : 'none',
                 }}
               >
                 {/* 无标签选项 */}
@@ -259,9 +270,10 @@ export function QuickFilters({ entries, onFilterResults, onClearFilter }: QuickF
                   className={`w-full px-3 py-2 text-left hover:bg-opacity-80 transition-colors flex items-center justify-between ${isMobile ? 'text-sm' : ''}`}
                   style={{
                     backgroundColor: selectedTags.includes('__no_tags__')
-                      ? `${theme.colors.primary}20`
+                      ? (theme.mode === 'glass' ? 'rgba(255, 255, 255, 0.2)' : `${theme.colors.primary}20`)
                       : 'transparent',
-                    color: theme.mode === 'glass' && !selectedTags.includes('__no_tags__') ? '#1f2937' : theme.colors.text,
+                    color: theme.mode === 'glass' ? '#ffffff' : theme.colors.text,
+                    textShadow: theme.mode === 'glass' ? '0 1px 2px rgba(0, 0, 0, 0.5)' : 'none',
                   }}
                 >
                   <span>📝 无标签 ({getNoTagsCount()})</span>
@@ -284,9 +296,10 @@ export function QuickFilters({ entries, onFilterResults, onClearFilter }: QuickF
                     className={`w-full px-3 py-2 text-left hover:bg-opacity-80 transition-colors flex items-center justify-between ${isMobile ? 'text-sm' : ''}`}
                     style={{
                       backgroundColor: selectedTags.includes(tag)
-                        ? `${theme.colors.primary}20`
+                        ? (theme.mode === 'glass' ? 'rgba(255, 255, 255, 0.2)' : `${theme.colors.primary}20`)
                         : 'transparent',
-                      color: theme.mode === 'glass' && !selectedTags.includes(tag) ? '#1f2937' : theme.colors.text,
+                      color: theme.mode === 'glass' ? '#ffffff' : theme.colors.text,
+                      textShadow: theme.mode === 'glass' ? '0 1px 2px rgba(0, 0, 0, 0.5)' : 'none',
                     }}
                   >
                     <span>#{tag}</span>
@@ -328,13 +341,15 @@ export function QuickFilters({ entries, onFilterResults, onClearFilter }: QuickF
             }}
             className={`w-full ${isMobile ? 'px-2 py-1.5 text-sm' : 'px-3 py-2'} rounded border focus:outline-none focus:ring-2 transition-all`}
             style={{
-              backgroundColor: theme.mode === 'glass' 
-                ? 'rgba(255, 255, 255, 0.1)' 
+              backgroundColor: theme.mode === 'glass'
+                ? 'rgba(71, 85, 105, 0.7)'
                 : theme.colors.surface,
-              borderColor: theme.mode === 'glass' 
-                ? 'rgba(255, 255, 255, 0.3)' 
+              borderColor: theme.mode === 'glass'
+                ? 'rgba(99, 102, 241, 0.4)'
                 : theme.colors.border,
               color: theme.mode === 'glass' ? 'white' : theme.colors.text,
+              textShadow: theme.mode === 'glass' ? '0 1px 2px rgba(0, 0, 0, 0.5)' : 'none',
+              backdropFilter: theme.mode === 'glass' ? 'blur(10px)' : 'none',
               '--tw-ring-color': theme.colors.primary,
             } as React.CSSProperties}
           >
@@ -356,13 +371,15 @@ export function QuickFilters({ entries, onFilterResults, onClearFilter }: QuickF
             disabled={!selectedYear}
             className={`w-full ${isMobile ? 'px-2 py-1.5 text-sm' : 'px-3 py-2'} rounded border focus:outline-none focus:ring-2 transition-all ${!selectedYear ? 'opacity-50 cursor-not-allowed' : ''}`}
             style={{
-              backgroundColor: theme.mode === 'glass' 
-                ? 'rgba(255, 255, 255, 0.1)' 
+              backgroundColor: theme.mode === 'glass'
+                ? 'rgba(71, 85, 105, 0.7)'
                 : theme.colors.surface,
-              borderColor: theme.mode === 'glass' 
-                ? 'rgba(255, 255, 255, 0.3)' 
+              borderColor: theme.mode === 'glass'
+                ? 'rgba(99, 102, 241, 0.4)'
                 : theme.colors.border,
               color: theme.mode === 'glass' ? 'white' : theme.colors.text,
+              textShadow: theme.mode === 'glass' ? '0 1px 2px rgba(0, 0, 0, 0.5)' : 'none',
+              backdropFilter: theme.mode === 'glass' ? 'blur(10px)' : 'none',
               '--tw-ring-color': theme.colors.primary,
             } as React.CSSProperties}
           >
@@ -384,9 +401,17 @@ export function QuickFilters({ entries, onFilterResults, onClearFilter }: QuickF
               key={tag}
               className={`flex items-center gap-1 ${isMobile ? 'text-xs px-2 py-1' : 'text-sm px-3 py-1'} rounded-full`}
               style={{
-                backgroundColor: `${theme.colors.primary}20`,
-                color: theme.colors.primary,
-                border: `1px solid ${theme.colors.primary}40`
+                backgroundColor: theme.mode === 'glass'
+                  ? 'rgba(99, 102, 241, 0.4)'
+                  : `${theme.colors.primary}20`,
+                color: theme.mode === 'glass'
+                  ? '#ffffff'
+                  : theme.colors.primary,
+                border: theme.mode === 'glass'
+                  ? '1px solid rgba(99, 102, 241, 0.6)'
+                  : `1px solid ${theme.colors.primary}40`,
+                textShadow: theme.mode === 'glass' ? '0 1px 2px rgba(0, 0, 0, 0.6)' : 'none',
+                backdropFilter: theme.mode === 'glass' ? 'blur(10px)' : 'none'
               }}
             >
               <Tag className="w-3 h-3" />
@@ -403,9 +428,17 @@ export function QuickFilters({ entries, onFilterResults, onClearFilter }: QuickF
             <span
               className={`flex items-center gap-1 ${isMobile ? 'text-xs px-2 py-1' : 'text-sm px-3 py-1'} rounded-full`}
               style={{
-                backgroundColor: `${theme.colors.primary}20`,
-                color: theme.colors.primary,
-                border: `1px solid ${theme.colors.primary}40`
+                backgroundColor: theme.mode === 'glass'
+                  ? 'rgba(99, 102, 241, 0.4)'
+                  : `${theme.colors.primary}20`,
+                color: theme.mode === 'glass'
+                  ? '#ffffff'
+                  : theme.colors.primary,
+                border: theme.mode === 'glass'
+                  ? '1px solid rgba(99, 102, 241, 0.6)'
+                  : `1px solid ${theme.colors.primary}40`,
+                textShadow: theme.mode === 'glass' ? '0 1px 2px rgba(0, 0, 0, 0.6)' : 'none',
+                backdropFilter: theme.mode === 'glass' ? 'blur(10px)' : 'none'
               }}
             >
               <Calendar className="w-3 h-3" />

@@ -145,7 +145,7 @@ export function DiaryCard({ entry, onEdit }: DiaryCardProps) {
               className={`font-bold flex-1 ${isMobile ? 'text-lg' : 'text-xl'}`}
               style={{
                 color: theme.colors.text,
-                textShadow: theme.mode === 'glass' ? '0 1px 2px rgba(0, 0, 0, 0.3)' : 'none'
+                textShadow: theme.mode === 'glass' ? '0 2px 4px rgba(0, 0, 0, 0.6)' : 'none'
               }}
             >
               {entry.title}
@@ -160,7 +160,7 @@ export function DiaryCard({ entry, onEdit }: DiaryCardProps) {
               className={`font-medium ${isMobile ? 'text-base' : 'text-lg'} line-clamp-2`}
               style={{
                 color: theme.colors.text,
-                textShadow: theme.mode === 'glass' ? '0 1px 2px rgba(0, 0, 0, 0.3)' : 'none'
+                textShadow: theme.mode === 'glass' ? '0 2px 4px rgba(0, 0, 0, 0.6)' : 'none'
               }}
             >
               {entry.content.split('\n')[0].substring(0, isMobile ? 50 : 80)}
@@ -236,7 +236,7 @@ export function DiaryCard({ entry, onEdit }: DiaryCardProps) {
             className={`leading-relaxed ${entry.title && entry.title !== '无标题' ? '' : 'mt-2'}`}
             style={{
               color: theme.colors.text,
-              textShadow: theme.mode === 'glass' ? '0 1px 2px rgba(0, 0, 0, 0.2)' : 'none'
+              textShadow: theme.mode === 'glass' ? '0 2px 4px rgba(0, 0, 0, 0.5)' : 'none'
             }}
           >
             {entry.content.split('\n').slice(0, 3).map((line, index) => (
@@ -265,7 +265,7 @@ export function DiaryCard({ entry, onEdit }: DiaryCardProps) {
                 className="leading-relaxed whitespace-pre-wrap"
                 style={{
                   color: theme.colors.text,
-                  textShadow: theme.mode === 'glass' ? '0 1px 2px rgba(0, 0, 0, 0.2)' : 'none'
+                  textShadow: theme.mode === 'glass' ? '0 2px 4px rgba(0, 0, 0, 0.5)' : 'none'
                 }}
               >
                 {entry.content}
@@ -326,15 +326,15 @@ export function DiaryCard({ entry, onEdit }: DiaryCardProps) {
               className={`px-3 py-1 rounded-full transition-colors duration-200 ${isMobile ? 'text-xs' : 'text-sm'}`}
               style={{
                 backgroundColor: theme.mode === 'glass'
-                  ? 'rgba(255, 255, 255, 0.25)'
+                  ? 'rgba(99, 102, 241, 0.3)'
                   : `${theme.colors.primary}20`,
                 color: theme.mode === 'glass'
                   ? '#ffffff'
                   : theme.colors.primary,
                 border: theme.mode === 'glass'
-                  ? '1px solid rgba(255, 255, 255, 0.4)'
+                  ? '1px solid rgba(99, 102, 241, 0.5)'
                   : `1px solid ${theme.colors.primary}40`,
-                backdropFilter: theme.mode === 'glass' ? 'blur(8px)' : 'none'
+                textShadow: theme.mode === 'glass' ? '0 1px 2px rgba(0, 0, 0, 0.5)' : 'none'
               }}
             >
               #{tag}
