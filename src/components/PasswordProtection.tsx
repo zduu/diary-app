@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Lock, Eye, EyeOff } from 'lucide-react';
 import { useThemeContext } from './ThemeProvider';
 import { apiService } from '../services/api';
@@ -12,10 +13,7 @@ interface PasswordSettings {
   password: string;
 }
 
-interface BackgroundSettings {
-  enabled: boolean;
-  imageUrl: string;
-}
+
 
 export function PasswordProtection({ onAuthenticated }: PasswordProtectionProps) {
   const { theme } = useThemeContext();
@@ -28,10 +26,7 @@ export function PasswordProtection({ onAuthenticated }: PasswordProtectionProps)
     password: 'diary123'
   });
 
-  const [backgroundSettings, setBackgroundSettings] = useState<BackgroundSettings>({
-    enabled: false,
-    imageUrl: ''
-  });
+
 
   // 从后端加载密码设置
   const loadPasswordSettings = async () => {
@@ -43,11 +38,7 @@ export function PasswordProtection({ onAuthenticated }: PasswordProtectionProps)
       };
       setPasswordSettings(newPasswordSettings);
 
-      const newBackgroundSettings = {
-        enabled: settings.login_background_enabled === 'true',
-        imageUrl: settings.login_background_url || ''
-      };
-      setBackgroundSettings(newBackgroundSettings);
+
 
       // 如果没有启用密码保护，直接通过验证
       if (!newPasswordSettings.enabled) {
@@ -58,14 +49,26 @@ export function PasswordProtection({ onAuthenticated }: PasswordProtectionProps)
       // 如果后端加载失败，尝试从localStorage加载
       const localSettings = localStorage.getItem('diary-password-settings');
       if (localSettings) {
-        const parsed = JSON.parse(localSettings);
-        setPasswordSettings(parsed);
-        if (!parsed.enabled) {
-          onAuthenticated();
+        try {
+          const parsed = JSON.parse(localSettings);
+          setPasswordSettings(parsed);
+          if (!parsed.enabled) {
+            onAuthenticated();
+          }
+        } catch (parseError) {
+          console.error('解析本地密码设置失败:', parseError);
+          // 解析失败时使用默认设置（启用密码保护）
+          setPasswordSettings({
+            enabled: true,
+            password: 'diary123'
+          });
         }
       } else {
-        // 默认不启用密码保护
-        onAuthenticated();
+        // 没有本地设置时使用默认设置（启用密码保护）
+        setPasswordSettings({
+          enabled: true,
+          password: 'diary123'
+        });
       }
     }
   };
@@ -98,35 +101,35 @@ export function PasswordProtection({ onAuthenticated }: PasswordProtectionProps)
     return null;
   }
 
-  return (
-    <div 
-      className="fixed inset-0 flex items-center justify-center p-4" 
-      style={{ 
+  return createPortal(
+    <div
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100vw',
+        height: '100vh',
         zIndex: 9999,
-        backgroundColor: backgroundSettings.enabled 
-          ? (backgroundSettings.imageUrl ? 'transparent' : '#000000')
-          : 'rgba(0, 0, 0, 0.75)',
-        backgroundImage: backgroundSettings.enabled && backgroundSettings.imageUrl 
-          ? `url(${backgroundSettings.imageUrl})`
-          : 'none',
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat'
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '16px',
+        backgroundColor: 'transparent', // 完全透明，让欢迎页面作为背景
+        backdropFilter: 'blur(2px) brightness(0.8)', // 轻微模糊和降低亮度，但保持透明
+        boxSizing: 'border-box'
       }}
     >
-      {/* 图片背景的遮罩层 */}
-      {backgroundSettings.enabled && backgroundSettings.imageUrl && (
-        <div 
-          className="absolute inset-0" 
-          style={{ 
-            backgroundColor: 'rgba(0, 0, 0, 0.7)',
-            backdropFilter: 'blur(2px)'
-          }} 
-        />
-      )}
+      {/* 轻微的遮罩以提高密码框的可读性 */}
+      <div
+        className="absolute inset-0"
+        style={{
+          backgroundColor: 'rgba(0, 0, 0, 0.1)',
+          backdropFilter: 'blur(1px)'
+        }}
+      />
       
       <div
-        className={`w-full max-w-md rounded-xl p-8 ${theme.effects.blur} relative z-10`}
+        className={`w-full max-w-lg mx-4 sm:mx-6 md:mx-8 lg:max-w-xl xl:max-w-xl rounded-xl p-6 sm:p-8 md:p-10 ${theme.effects.blur} relative z-10`}
         style={{
           backgroundColor: theme.mode === 'glass' ? undefined : theme.colors.surface,
           border: theme.mode === 'glass' ? undefined : `1px solid ${theme.colors.border}`,
@@ -134,22 +137,22 @@ export function PasswordProtection({ onAuthenticated }: PasswordProtectionProps)
       >
         <div className="text-center mb-8">
           <div
-            className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
+            className="w-16 h-16 sm:w-18 sm:h-18 md:w-20 md:h-20 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6"
             style={{
               backgroundColor: theme.mode === 'glass' 
                 ? 'rgba(255, 255, 255, 0.2)' 
                 : `${theme.colors.primary}20`
             }}
           >
-            <Lock 
-              className="w-8 h-8" 
+            <Lock
+              className="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10"
               style={{ 
                 color: theme.mode === 'glass' ? 'white' : theme.colors.primary 
               }} 
             />
           </div>
-          <h2 
-            className="text-2xl font-bold mb-2"
+          <h2
+            className="text-xl sm:text-2xl md:text-3xl font-bold mb-2 sm:mb-3"
             style={{ 
               color: theme.mode === 'glass' ? 'white' : theme.colors.text,
               textShadow: theme.mode === 'glass' ? '0 2px 4px rgba(0, 0, 0, 0.3)' : 'none'
@@ -157,8 +160,8 @@ export function PasswordProtection({ onAuthenticated }: PasswordProtectionProps)
           >
             访问验证
           </h2>
-          <p 
-            className="text-sm"
+          <p
+            className="text-sm sm:text-base"
             style={{ 
               color: theme.mode === 'glass' ? 'rgba(255, 255, 255, 0.8)' : theme.colors.textSecondary,
               textShadow: theme.mode === 'glass' ? '0 1px 2px rgba(0, 0, 0, 0.3)' : 'none'
@@ -175,7 +178,7 @@ export function PasswordProtection({ onAuthenticated }: PasswordProtectionProps)
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="请输入访问密码"
-              className="w-full px-4 py-3 pr-12 rounded-lg border focus:outline-none focus:ring-2 transition-all"
+              className="w-full px-4 py-3 pr-12 sm:px-6 sm:py-4 sm:pr-14 rounded-lg border focus:outline-none focus:ring-2 transition-all text-base sm:text-lg"
               style={{
                 backgroundColor: theme.mode === 'glass' 
                   ? 'rgba(255, 255, 255, 0.1)' 
@@ -191,12 +194,12 @@ export function PasswordProtection({ onAuthenticated }: PasswordProtectionProps)
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 rounded"
+              className="absolute right-3 sm:right-4 top-1/2 transform -translate-y-1/2 p-1 rounded"
               style={{
                 color: theme.mode === 'glass' ? 'rgba(255, 255, 255, 0.7)' : theme.colors.textSecondary
               }}
             >
-              {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              {showPassword ? <EyeOff className="w-5 h-5 sm:w-6 sm:h-6" /> : <Eye className="w-5 h-5 sm:w-6 sm:h-6" />}
             </button>
           </div>
 
@@ -216,7 +219,7 @@ export function PasswordProtection({ onAuthenticated }: PasswordProtectionProps)
           <button
             type="submit"
             disabled={isLoading || !password.trim()}
-            className="w-full py-3 rounded-lg font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-3 sm:py-4 rounded-lg font-medium text-base sm:text-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             style={{
               background: theme.mode === 'glass'
                 ? 'linear-gradient(135deg, rgba(168, 85, 247, 0.9) 0%, rgba(139, 92, 246, 0.9) 100%)'
@@ -246,6 +249,7 @@ export function PasswordProtection({ onAuthenticated }: PasswordProtectionProps)
           </p>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

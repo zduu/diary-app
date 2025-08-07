@@ -1389,10 +1389,36 @@ export function MapLocationPicker({
   // 检查API配置
   if (!isAmapConfigured() || !isAmapJSConfigured()) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          zIndex: 50,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          padding: '16px',
+          boxSizing: 'border-box',
+          overflow: 'hidden'
+        }}
+        onClick={(e) => {
+          // 点击背景关闭弹窗
+          if (e.target === e.currentTarget) {
+            onClose();
+          }
+        }}
+      >
         <div
           className="bg-white rounded-lg shadow-xl w-full max-w-md p-6"
           style={{ backgroundColor: theme.colors.background }}
+          onClick={(e) => {
+            // 防止点击弹窗内容时关闭弹窗
+            e.stopPropagation();
+          }}
         >
           <div className="text-center">
             <div className="text-4xl mb-4">🗺️</div>
@@ -1420,7 +1446,29 @@ export function MapLocationPicker({
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 md:p-4">
+    <div
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100vw',
+        height: '100vh',
+        zIndex: 50,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        padding: isMobile ? '8px' : '16px',
+        boxSizing: 'border-box',
+        overflow: 'hidden'
+      }}
+      onClick={(e) => {
+        // 点击背景关闭弹窗
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+    >
       <div
         className={`bg-white rounded-lg shadow-xl w-full flex flex-col ${
           isMobile
@@ -1428,6 +1476,10 @@ export function MapLocationPicker({
             : 'max-w-4xl h-[80vh]'
         }`}
         style={{ backgroundColor: theme.colors.background }}
+        onClick={(e) => {
+          // 防止点击弹窗内容时关闭弹窗
+          e.stopPropagation();
+        }}
       >
         {/* 头部 */}
         <div

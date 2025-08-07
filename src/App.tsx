@@ -4,6 +4,7 @@ import { Timeline } from './components/Timeline';
 import { DiaryForm } from './components/DiaryForm';
 import { AdminPanel, AdminAuthProvider, useAdminAuth } from './components/AdminPanel';
 import { PasswordProtection } from './components/PasswordProtection';
+import { WelcomePage } from './components/WelcomePage';
 import { SearchBar } from './components/SearchBar';
 import { QuickFilters } from './components/QuickFilters';
 import { ExportModal } from './components/ExportModal';
@@ -15,6 +16,7 @@ import { useDiary } from './hooks/useDiary';
 import { useExportSettings } from './hooks/useExportSettings';
 import { useArchiveViewSettings } from './hooks/useArchiveViewSettings';
 import { DiaryEntry } from './types';
+import { apiService } from './services/api';
 
 function AppContent() {
   const { theme } = useThemeContext();
@@ -26,6 +28,11 @@ function AppContent() {
   const [editingEntry, setEditingEntry] = useState<DiaryEntry | undefined>();
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [showWelcomePage, setShowWelcomePage] = useState(true);
+  const [showPasswordPage, setShowPasswordPage] = useState(false);
+  const [showMainApp, setShowMainApp] = useState(false);
+  const [isTransitioningToApp, setIsTransitioningToApp] = useState(false);
+  const [passwordProtectionEnabled, setPasswordProtectionEnabled] = useState<boolean | null>(null);
   const [searchResults, setSearchResults] = useState<DiaryEntry[] | null>(null);
   const [filterResults, setFilterResults] = useState<DiaryEntry[] | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('card');
@@ -47,6 +54,100 @@ function AppContent() {
       localStorage.setItem('diary_view_mode', 'card');
     }
   }, [archiveViewSettings.enabled, archiveViewSettingsLoading, viewMode]);
+
+  // 检测密码保护是否启用
+  useEffect(() => {
+    const checkPasswordProtection = async () => {
+      try {
+        // 使用apiService来获取设置，这样会自动处理API失败的情况
+        const settings = await apiService.getAllSettings();
+        const isEnabled = settings.app_password_enabled === 'true';
+        setPasswordProtectionEnabled(isEnabled);
+
+        // 如果密码保护未启用，设置为已认证，但仍显示欢迎页面
+        if (!isEnabled) {
+          setIsAuthenticated(true);
+        }
+        // 无论是否有密码保护，都先显示欢迎页面
+        setShowWelcomePage(true);
+      } catch (error) {
+        console.error('检查密码保护设置失败:', error);
+        // 出错时检查localStorage中的设置
+        const localSettings = localStorage.getItem('diary-password-settings');
+        if (localSettings) {
+          try {
+            const parsed = JSON.parse(localSettings);
+            const isEnabled = parsed.enabled === true;
+            setPasswordProtectionEnabled(isEnabled);
+
+            if (!isEnabled) {
+              setIsAuthenticated(true);
+            }
+            // 无论是否有密码保护，都先显示欢迎页面
+            setShowWelcomePage(true);
+          } catch (parseError) {
+            console.error('解析本地密码设置失败:', parseError);
+            // 解析失败时默认不启用密码保护
+            setPasswordProtectionEnabled(false);
+            setIsAuthenticated(true);
+            setShowWelcomePage(true);
+          }
+        } else {
+          // 没有本地设置时默认不启用密码保护，直接进入应用
+          setPasswordProtectionEnabled(false);
+          setIsAuthenticated(true);
+          setShowWelcomePage(true);
+        }
+      }
+    };
+
+    checkPasswordProtection();
+  }, []);
+
+  // 调试信息
+  useEffect(() => {
+    console.log('App状态:', {
+      passwordProtectionEnabled,
+      isAuthenticated,
+      showWelcomePage
+    });
+  }, [passwordProtectionEnabled, isAuthenticated, showWelcomePage]);
+
+  // 测试功能：添加键盘快捷键来切换密码保护
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Ctrl+Shift+P 切换密码保护
+      if (e.ctrlKey && e.shiftKey && e.key === 'P') {
+        e.preventDefault();
+        const currentSettings = localStorage.getItem('diary-password-settings');
+        let newSettings;
+
+        if (currentSettings) {
+          try {
+            const parsed = JSON.parse(currentSettings);
+            newSettings = {
+              enabled: !parsed.enabled,
+              password: parsed.password || 'diary123'
+            };
+          } catch {
+            newSettings = { enabled: true, password: 'diary123' };
+          }
+        } else {
+          newSettings = { enabled: true, password: 'diary123' };
+        }
+
+        localStorage.setItem('diary-password-settings', JSON.stringify(newSettings));
+
+        // 重新加载页面以应用新设置
+        window.location.reload();
+
+        console.log(`密码保护已${newSettings.enabled ? '启用' : '禁用'}，密码: ${newSettings.password}`);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, []);
 
   // 保存显示模式偏好到localStorage
   const handleViewModeChange = (mode: ViewMode) => {
@@ -135,19 +236,83 @@ function AppContent() {
     setIsExportModalOpen(true);
   };
 
+  // 如果密码保护状态还未确定，显示加载状态
+  if (passwordProtectionEnabled === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p>正在加载...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
-      {/* 密码保护 */}
-      {!isAuthenticated && (
-        <PasswordProtection onAuthenticated={() => setIsAuthenticated(true)} />
+      {/* 欢迎页面 - 始终首先显示，密码保护时作为背景保持可见 */}
+      {(showWelcomePage || showPasswordPage) && !showMainApp && (
+        <WelcomePage
+          hasPasswordProtection={passwordProtectionEnabled}
+          isBackground={showPasswordPage} // 当显示密码页面时，欢迎页面作为背景
+          isTransitioningToApp={isTransitioningToApp} // 传递过渡状态
+          onEnterApp={() => {
+            if (passwordProtectionEnabled && !isAuthenticated) {
+              setShowPasswordPage(true);
+              // 不隐藏欢迎页面，让它作为背景
+            } else {
+              // 开始平缓的过渡到主应用
+              setIsTransitioningToApp(true);
+              setTimeout(() => {
+                setShowWelcomePage(false);
+                setShowMainApp(true);
+                // 延迟一点再停止过渡状态，确保动画完成
+                setTimeout(() => {
+                  setIsTransitioningToApp(false);
+                }, 800);
+              }, 600); // 600ms后开始显示主应用
+            }
+          }}
+        />
+      )}
+
+      {/* 密码保护页面 - 在欢迎页面之上显示，背景是透明的 */}
+      {showPasswordPage && passwordProtectionEnabled && !isAuthenticated && !showMainApp && (
+        <PasswordProtection onAuthenticated={() => {
+          setIsAuthenticated(true);
+          setShowPasswordPage(false);
+          // 开始平缓的过渡到主应用
+          setIsTransitioningToApp(true);
+          setTimeout(() => {
+            setShowWelcomePage(false);
+            setShowMainApp(true);
+            // 延迟一点再停止过渡状态，确保动画完成
+            setTimeout(() => {
+              setIsTransitioningToApp(false);
+            }, 800);
+          }, 600); // 600ms后开始显示主应用
+        }} />
       )}
 
       <div
-        className={`min-h-screen transition-all duration-300 ${
+        className={`app-transition ${
           theme.mode === 'glass' ? 'blog-guide-gradient' : ''
+        } ${
+          // 显示主应用时才显示，否则隐藏
+          showMainApp ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        } ${
+          // 添加淡入动画类
+          isTransitioningToApp ? 'main-app-enter' : ''
         }`}
         style={{
-          backgroundColor: theme.mode === 'glass' ? 'transparent' : theme.colors.background
+          backgroundColor: theme.mode === 'glass' ? 'transparent' : theme.colors.background,
+          transform: showMainApp ? 'scale(1)' : 'scale(0.95)',
+          filter: showMainApp ? 'blur(0px) brightness(1)' : 'blur(3px) brightness(0.8)',
+          transition: isTransitioningToApp
+            ? 'all 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+            : 'all 0.3s ease',
+          // 当不显示主应用时，完全移除对布局的影响
+          display: showMainApp ? 'block' : 'none'
         }}
       >
       {/* Header */}

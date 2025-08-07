@@ -294,6 +294,7 @@ class ApiService {
     // 在开发环境下，默认使用Mock服务（避免远程依赖）
     if (isDev) return true;
 
+    // 在生产环境中，默认尝试使用远程API，但如果失败会自动切换到Mock服务
     return false;
   }
 

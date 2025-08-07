@@ -200,10 +200,36 @@ export function DiaryForm({ entry, onSave, onCancel, isOpen }: DiaryFormProps) {
   if (!isOpen) return null;
 
   return (
-    <div className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center ${isMobile ? 'p-2' : 'p-4'} z-50`}>
+    <div
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100vw',
+        height: '100vh',
+        zIndex: 50,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        padding: isMobile ? '8px' : '16px',
+        boxSizing: 'border-box',
+        overflow: 'hidden'
+      }}
+      onClick={(e) => {
+        // 点击背景关闭弹窗
+        if (e.target === e.currentTarget) {
+          onCancel();
+        }
+      }}
+    >
       <div
         className={`${isMobile ? 'rounded-lg' : 'rounded-xl'} shadow-2xl w-full ${isMobile ? 'max-w-full h-full' : 'max-w-4xl max-h-[90vh]'} overflow-y-auto ${theme.effects.blur}`}
         style={{ backgroundColor: theme.colors.background }}
+        onClick={(e) => {
+          // 防止点击弹窗内容时关闭弹窗
+          e.stopPropagation();
+        }}
       >
         <div
           className={`flex justify-between items-center ${isMobile ? 'p-4' : 'p-6'}`}

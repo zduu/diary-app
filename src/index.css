@@ -61,13 +61,11 @@
 body {
   margin: 0;
   min-width: 320px;
-  min-height: 100vh;
   transition: all 0.3s ease;
 }
 
 #root {
   width: 100%;
-  min-height: 100vh;
 }
 
 /* 主题样式 */
@@ -108,7 +106,6 @@ body {
 .theme-glass {
   background: no-repeat center center fixed;
   background-size: cover;
-  min-height: 100vh;
   position: relative;
   overflow-x: hidden;
 }
@@ -333,7 +330,6 @@ body {
 
   /* 纯渐变背景设置 */
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  min-height: 100vh;
   position: relative;
   overflow-x: hidden;
 }
@@ -611,6 +607,300 @@ body.theme-purple .location-detail-modal {
 
 .theme-purple ::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+}
+
+/* 欢迎页面动画 */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeInUp {
+  animation: fadeInUp 0.8s ease-out;
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slideInLeft {
+  animation: slideInLeft 0.8s ease-out;
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slideInRight {
+  animation: slideInRight 0.8s ease-out;
+}
+
+/* 欢迎页面特效 */
+.welcome-gradient-text {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.theme-glass .welcome-gradient-text {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.7) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* 欢迎页面响应式优化 */
+@media (max-width: 768px) {
+  .welcome-hero-title {
+    font-size: 2.5rem !important;
+    line-height: 1.2;
+  }
+
+  .welcome-hero-subtitle {
+    font-size: 1.1rem !important;
+    padding: 0 1rem;
+  }
+
+  .welcome-feature-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+
+  .welcome-stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 1rem !important;
+  }
+}
+
+/* 欢迎页面悬停效果 */
+.welcome-feature-card:hover {
+  transform: translateY(-5px) scale(1.02);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+}
+
+.theme-glass .welcome-feature-card:hover {
+  box-shadow: 0 20px 40px rgba(255, 255, 255, 0.1);
+}
+
+/* 欢迎页面装饰元素 */
+.welcome-decoration {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(40px);
+  opacity: 0.3;
+  animation: float 8s ease-in-out infinite;
+}
+
+.welcome-decoration:nth-child(2) {
+  animation-delay: 2s;
+}
+
+.welcome-decoration:nth-child(3) {
+  animation-delay: 4s;
+}
+
+/* 欢迎页面滚动效果 */
+.welcome-page {
+  overflow-y: auto;
+  scroll-behavior: smooth;
+  transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 欢迎页面过渡动画 */
+.welcome-page-transitioning {
+  animation: welcomePageExit 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes welcomePageExit {
+  0% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: blur(0px) brightness(1);
+  }
+  30% {
+    opacity: 0.9;
+    transform: scale(0.98) translateY(-5px);
+    filter: blur(1px) brightness(0.95);
+  }
+  60% {
+    opacity: 0.6;
+    transform: scale(0.95) translateY(-15px);
+    filter: blur(3px) brightness(0.85);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.92) translateY(-30px);
+    filter: blur(8px) brightness(0.7);
+  }
+}
+
+/* 滚动指示器动画 */
+@keyframes scrollIndicator {
+  0% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  50% {
+    transform: translateY(10px);
+    opacity: 0.5;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.scroll-indicator {
+  animation: scrollIndicator 2s ease-in-out infinite;
+}
+
+/* 进入应用按钮悬停效果 */
+.enter-app-button:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+}
+
+.theme-glass .enter-app-button:hover {
+  box-shadow: 0 12px 40px rgba(255, 255, 255, 0.2);
+}
+
+/* 密码保护页面动画 - 更加轻柔 */
+.password-protection-enter {
+  animation: passwordProtectionFadeIn 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+@keyframes passwordProtectionFadeIn {
+  0% {
+    opacity: 0;
+    backdrop-filter: blur(0px) brightness(1);
+    transform: scale(1.02) translateY(20px);
+  }
+  40% {
+    opacity: 0.6;
+    backdrop-filter: blur(1px) brightness(0.95);
+    transform: scale(1.01) translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    backdrop-filter: blur(2px) brightness(0.8);
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* 平缓的滚动提示动画 */
+.scroll-hint {
+  animation: scrollHint 3s ease-in-out infinite;
+}
+
+@keyframes scrollHint {
+  0%, 100% {
+    transform: translateY(0);
+    opacity: 0.7;
+  }
+  50% {
+    transform: translateY(10px);
+    opacity: 1;
+  }
+}
+
+/* 主应用淡入动画 */
+.main-app-enter {
+  animation: mainAppFadeIn 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+@keyframes mainAppFadeIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.95) translateY(20px);
+    filter: blur(5px) brightness(0.7);
+  }
+  30% {
+    opacity: 0.3;
+    transform: scale(0.97) translateY(10px);
+    filter: blur(3px) brightness(0.8);
+  }
+  60% {
+    opacity: 0.7;
+    transform: scale(0.99) translateY(5px);
+    filter: blur(1px) brightness(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: blur(0px) brightness(1);
+  }
+}
+
+/* 防止白光闪现的平缓过渡 */
+.app-transition {
+  transition: all 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.app-transition-enter {
+  opacity: 0;
+  transform: scale(0.95);
+  filter: blur(3px) brightness(0.8);
+}
+
+.app-transition-enter-active {
+  opacity: 1;
+  transform: scale(1);
+  filter: blur(0px) brightness(1);
+}
+
+/* 管理员面板样式 */
+.admin-panel-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  z-index: 9999 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.admin-panel-content {
+  position: relative;
+  z-index: 10000;
+  max-height: 90vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 /* Custom scrollbar */

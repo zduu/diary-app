@@ -129,12 +129,38 @@ export function ExportModal({ isOpen, onClose, entries, exportType }: ExportModa
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100vw',
+        height: '100vh',
+        zIndex: 50,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        padding: '16px',
+        boxSizing: 'border-box',
+        overflow: 'hidden'
+      }}
+      onClick={(e) => {
+        // 点击背景关闭弹窗
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+    >
       <div
         className="w-full max-w-md rounded-xl shadow-2xl"
         style={{
           backgroundColor: theme.colors.surface,
           border: `1px solid ${theme.colors.border}`
+        }}
+        onClick={(e) => {
+          // 防止点击弹窗内容时关闭弹窗
+          e.stopPropagation();
         }}
       >
         {/* 标题栏 */}
