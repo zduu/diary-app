@@ -93,6 +93,8 @@ interface ArchiveViewSettings {
   enabled: boolean;
 }
 
+
+
 export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }: AdminPanelProps) {
   const { theme } = useThemeContext();
   const { isAdminAuthenticated, setIsAdminAuthenticated } = useAdminAuth();
@@ -171,6 +173,8 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
   const [currentArchiveViewSettings, setCurrentArchiveViewSettings] = useState<ArchiveViewSettings>({
     enabled: true
   });
+
+
 
   // 保存设置到数据库
   const saveSettings = async (newSettings: AdminSettings) => {
@@ -701,6 +705,12 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
       alert('设置修改失败：' + (error instanceof Error ? error.message : '未知错误'));
     }
   };
+
+
+
+
+
+
 
   // 过滤日记（包括隐藏的）
   const filteredEntries = entries.filter(entry => {

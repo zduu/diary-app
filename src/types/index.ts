@@ -48,3 +48,12 @@ export interface ApiResponse<T = any> {
 
 export type MoodType = 'happy' | 'sad' | 'neutral' | 'excited' | 'anxious' | 'peaceful' | 'calm' | 'angry' | 'grateful' | 'loved';
 export type WeatherType = 'sunny' | 'cloudy' | 'rainy' | 'snowy' | 'unknown';
+
+export interface DiaryStats {
+  consecutive_days: number;        // 连续日记多少天
+  total_days_with_entries: number; // 一共日记多少天
+  total_entries: number;          // 多少篇日记
+  latest_entry_date: string | null; // 最近日记时间
+  first_entry_date: string | null;  // 第一篇日记时间
+  current_streak_start: string | null; // 当前连续记录开始时间
+}

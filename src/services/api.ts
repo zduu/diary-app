@@ -1,4 +1,4 @@
-import { DiaryEntry, ApiResponse } from '../types';
+import { DiaryEntry, ApiResponse, DiaryStats } from '../types';
 import { withRetry, verifyDeletion, getConsistencyErrorMessage } from '../utils/d1Utils';
 
 const API_BASE_URL = '/api';
@@ -251,6 +251,101 @@ class MockApiService {
     const settings = this.getStoredSettings();
     settings[key] = value;
     this.saveSettings(settings);
+  }
+
+  // 计算连续日记天数
+  private calculateConsecutiveDays(entries: DiaryEntry[]): { consecutive_days: number, current_streak_start: string | null } {
+    if (entries.length === 0) {
+      return { consecutive_days: 0, current_streak_start: null };
+    }
+
+    // 按日期排序（最新的在前）
+    const sortedEntries = entries.sort((a, b) =>
+      new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime()
+    );
+
+    // 获取每天的日期（去重）
+    const uniqueDates = Array.from(new Set(
+      sortedEntries.map(entry => {
+        const date = new Date(entry.created_at || '');
+        return date.toISOString().split('T')[0]; // YYYY-MM-DD格式
+      })
+    )).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+
+    if (uniqueDates.length === 0) {
+      return { consecutive_days: 0, current_streak_start: null };
+    }
+
+    let consecutiveDays = 1;
+    let currentStreakStart = uniqueDates[0];
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+    // 检查最新日记是否是今天或昨天
+    const latestDate = uniqueDates[0];
+    if (latestDate !== todayStr && latestDate !== yesterdayStr) {
+      // 如果最新日记不是今天或昨天，连续天数为0
+      return { consecutive_days: 0, current_streak_start: null };
+    }
+
+    // 从最新日期开始，检查连续性
+    for (let i = 1; i < uniqueDates.length; i++) {
+      const currentDate = new Date(uniqueDates[i - 1]);
+      const nextDate = new Date(uniqueDates[i]);
+      const diffTime = currentDate.getTime() - nextDate.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      if (diffDays === 1) {
+        consecutiveDays++;
+        currentStreakStart = uniqueDates[i];
+      } else {
+        break;
+      }
+    }
+
+    return { consecutive_days: consecutiveDays, current_streak_start: currentStreakStart };
+  }
+
+  // 计算总共有日记的天数
+  private calculateTotalDaysWithEntries(entries: DiaryEntry[]): number {
+    const uniqueDates = new Set(
+      entries.map(entry => {
+        const date = new Date(entry.created_at || '');
+        return date.toISOString().split('T')[0]; // YYYY-MM-DD格式
+      })
+    );
+    return uniqueDates.size;
+  }
+
+  async getStats(): Promise<DiaryStats> {
+    // 模拟网络延迟
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    const entries = this.getStoredEntries();
+
+    // 计算统计信息
+    const { consecutive_days, current_streak_start } = this.calculateConsecutiveDays(entries);
+    const total_days_with_entries = this.calculateTotalDaysWithEntries(entries);
+    const total_entries = entries.length;
+
+    // 获取最新和最早的日记时间
+    const sortedEntries = entries.sort((a, b) =>
+      new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime()
+    );
+    const latest_entry_date = sortedEntries.length > 0 ? sortedEntries[0].created_at || null : null;
+    const first_entry_date = sortedEntries.length > 0 ? sortedEntries[sortedEntries.length - 1].created_at || null : null;
+
+    return {
+      consecutive_days,
+      total_days_with_entries,
+      total_entries,
+      latest_entry_date,
+      first_entry_date,
+      current_streak_start
+    };
   }
 }
 
@@ -629,6 +724,47 @@ class ApiService {
     } else {
       localStorage.setItem('diary_disable_defaults', 'true');
     }
+  }
+
+  // 获取日记统计信息
+  async getStats(apiKey?: string): Promise<DiaryStats> {
+    if (this.useMockService) {
+      return this.mockService.getStats();
+    }
+
+    try {
+      // 准备请求头
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      // 如果提供了API密钥，添加到请求头
+      if (apiKey) {
+        headers['X-API-Key'] = apiKey;
+      }
+
+      const response = await this.request<DiaryStats>('/stats', {
+        headers
+      });
+
+      return response.data || {
+        consecutive_days: 0,
+        total_days_with_entries: 0,
+        total_entries: 0,
+        latest_entry_date: null,
+        first_entry_date: null,
+        current_streak_start: null
+      };
+    } catch (error) {
+      console.warn('远程API调用失败，切换到本地Mock服务:', error);
+      this.useMockService = true;
+      return this.mockService.getStats();
+    }
+  }
+
+  // 获取带密钥的统计信息（用于外部调用）
+  async getStatsWithKey(apiKey: string): Promise<DiaryStats> {
+    return this.getStats(apiKey);
   }
 }
 

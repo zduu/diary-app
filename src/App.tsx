@@ -17,6 +17,7 @@ import { useExportSettings } from './hooks/useExportSettings';
 import { useArchiveViewSettings } from './hooks/useArchiveViewSettings';
 import { DiaryEntry } from './types';
 import { apiService } from './services/api';
+import { StatsTest } from './pages/StatsTest';
 
 function AppContent() {
   const { theme } = useThemeContext();
@@ -38,6 +39,7 @@ function AppContent() {
   const [viewMode, setViewMode] = useState<ViewMode>('card');
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [exportType, setExportType] = useState<string>('全部日记');
+  const [showStatsTest, setShowStatsTest] = useState(false);
 
   // 从localStorage加载显示模式偏好
   useEffect(() => {
@@ -381,6 +383,22 @@ function AppContent() {
                 <Settings className="w-4 h-4 md:w-5 md:h-5" />
               </button>
 
+              {/* 统计测试按钮 - 仅在开发环境显示 */}
+              {import.meta.env.DEV && (
+                <button
+                  onClick={() => setShowStatsTest(!showStatsTest)}
+                  className="p-2 md:p-3 rounded-full transition-all duration-200 hover:scale-110"
+                  style={{
+                    backgroundColor: showStatsTest ? theme.colors.primary : (theme.mode === 'glass' ? 'rgba(255, 255, 255, 0.2)' : theme.colors.surface),
+                    color: showStatsTest ? 'white' : (theme.mode === 'glass' ? 'white' : theme.colors.textSecondary),
+                    border: theme.mode === 'glass' ? '1px solid rgba(255, 255, 255, 0.3)' : `1px solid ${theme.colors.border}`
+                  }}
+                  title="统计API测试"
+                >
+                  📊
+                </button>
+              )}
+
               <button
                 onClick={refreshEntries}
                 disabled={loading}
@@ -569,11 +587,16 @@ function AppContent() {
               </div>
             )}
 
-            <Timeline
-              entries={searchResults || filterResults || entries}
-              onEdit={handleEdit}
-              viewMode={viewMode}
-            />
+            {/* 统计测试页面 */}
+            {showStatsTest ? (
+              <StatsTest />
+            ) : (
+              <Timeline
+                entries={searchResults || filterResults || entries}
+                onEdit={handleEdit}
+                viewMode={viewMode}
+              />
+            )}
           </div>
         )}
       </main>
