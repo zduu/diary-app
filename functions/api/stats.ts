@@ -36,6 +36,14 @@ interface Env {
   STATS_API_KEY?: string; // 统计API访问密钥
 }
 
+// CORS headers 配置
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-API-Key',
+  'Access-Control-Max-Age': '86400', // 24小时预检缓存
+};
+
 // 计算连续日记天数
 function calculateConsecutiveDays(entries: DiaryEntry[]): { consecutive_days: number, current_streak_start: string | null } {
   if (entries.length === 0) {
@@ -149,7 +157,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         status: 401,
         headers: {
           'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
+          ...corsHeaders,
         },
       });
     }
@@ -203,9 +211,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     return new Response(JSON.stringify(response), {
       headers: {
         'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
+        ...corsHeaders,
       },
     });
 
@@ -222,7 +228,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       status: 500,
       headers: {
         'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
+        ...corsHeaders,
       },
     });
   }
@@ -232,10 +238,6 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 export const onRequestOptions: PagesFunction = async () => {
   return new Response(null, {
     status: 200,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-API-Key',
-    },
+    headers: corsHeaders,
   });
 };

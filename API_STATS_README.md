@@ -10,6 +10,7 @@
 - **请求方法**: `GET`
 - **返回格式**: `JSON`
 - **认证要求**: 可选（支持API密钥保护）
+- **CORS支持**: ✅ 完全支持跨域请求
 
 ## 返回数据格式
 
@@ -60,6 +61,51 @@
 | `first_entry_date` | `string \| null` | 第一篇日记时间（ISO格式） |
 | `current_streak_start` | `string \| null` | 当前连续记录开始时间（ISO格式） |
 
+## CORS 跨域支持
+
+### 支持的 CORS 配置
+
+API 完全支持跨域资源共享（CORS），允许从任何域名访问：
+
+- **Access-Control-Allow-Origin**: `*` （允许所有域名）
+- **Access-Control-Allow-Methods**: `GET, OPTIONS`
+- **Access-Control-Allow-Headers**: `Content-Type, Authorization, X-API-Key`
+- **Access-Control-Max-Age**: `86400` （24小时预检缓存）
+
+### 预检请求处理
+
+API 自动处理 OPTIONS 预检请求，支持复杂跨域请求：
+
+```javascript
+// 浏览器会自动发送预检请求（如果需要）
+// OPTIONS /api/stats
+//
+// 响应头包含：
+// Access-Control-Allow-Origin: *
+// Access-Control-Allow-Methods: GET, OPTIONS
+// Access-Control-Allow-Headers: Content-Type, Authorization, X-API-Key
+// Access-Control-Max-Age: 86400
+```
+
+### 跨域认证支持
+
+在跨域请求中使用 API 密钥认证：
+
+```javascript
+// 跨域请求 + API密钥认证
+fetch('https://your-diary-domain.com/api/stats', {
+  method: 'GET',
+  headers: {
+    'Content-Type': 'application/json',
+    'X-API-Key': 'YOUR_API_KEY'
+  }
+})
+.then(response => response.json())
+.then(data => {
+  console.log('跨域获取统计数据:', data);
+});
+```
+
 ## API密钥认证
 
 ### 认证方式
@@ -100,7 +146,7 @@ API支持三种密钥传递方式：
 ### JavaScript/TypeScript
 
 ```javascript
-// 基础请求（无认证）
+// 基础请求（同域，无认证）
 fetch('/api/stats')
   .then(response => response.json())
   .then(data => {
@@ -115,6 +161,20 @@ fetch('/api/stats')
   })
   .catch(error => {
     console.error('请求失败:', error);
+  });
+
+// 跨域请求（无认证）
+fetch('https://your-diary-domain.com/api/stats')
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      console.log('跨域获取统计成功:', data.data);
+    } else {
+      console.error('获取统计失败:', data.error);
+    }
+  })
+  .catch(error => {
+    console.error('跨域请求失败:', error);
   });
 
 // 使用API密钥（Authorization Header）
@@ -139,15 +199,53 @@ fetch('/api/stats', {
     // 处理响应...
   });
 
-// 使用 async/await 和 API密钥
-async function getStats(apiKey) {
+// 跨域请求 + API密钥认证（推荐方式）
+fetch('https://your-diary-domain.com/api/stats', {
+  method: 'GET',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer YOUR_API_KEY'
+  }
+})
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      console.log('跨域认证请求成功:', data.data);
+    } else {
+      console.error('认证失败:', data.error);
+    }
+  })
+  .catch(error => {
+    console.error('跨域认证请求失败:', error);
+  });
+
+// 跨域请求 + X-API-Key 认证
+fetch('https://your-diary-domain.com/api/stats', {
+  method: 'GET',
+  headers: {
+    'Content-Type': 'application/json',
+    'X-API-Key': 'YOUR_API_KEY'
+  }
+})
+  .then(response => response.json())
+  .then(data => {
+    console.log('跨域 X-API-Key 认证:', data);
+  });
+
+// 使用 async/await 和 API密钥（支持跨域）
+async function getStats(apiKey, baseUrl = '') {
   try {
-    const headers = {};
+    const headers = {
+      'Content-Type': 'application/json'
+    };
+
     if (apiKey) {
       headers['X-API-Key'] = apiKey;
     }
 
-    const response = await fetch('/api/stats', { headers });
+    // 支持跨域请求，baseUrl 可以是完整的域名
+    const url = baseUrl ? `${baseUrl}/api/stats` : '/api/stats';
+    const response = await fetch(url, { headers });
     const data = await response.json();
 
     if (data.success) {
@@ -160,28 +258,48 @@ async function getStats(apiKey) {
     throw error;
   }
 }
+
+// 使用示例
+// 同域请求
+const localStats = await getStats('YOUR_API_KEY');
+
+// 跨域请求
+const remoteStats = await getStats('YOUR_API_KEY', 'https://your-diary-domain.com');
 ```
 
 ### cURL
 
 ```bash
-# 无认证请求
-curl -X GET "https://your-domain.com/api/stats" \
+# 无认证请求（本地）
+curl -X GET "http://localhost:8788/api/stats" \
   -H "Accept: application/json"
 
-# 使用Authorization Header
-curl -X GET "https://your-domain.com/api/stats" \
+# 无认证请求（跨域）
+curl -X GET "https://your-diary-domain.com/api/stats" \
+  -H "Accept: application/json"
+
+# 跨域 + Authorization Header 认证
+curl -X GET "https://your-diary-domain.com/api/stats" \
   -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_API_KEY"
 
-# 使用X-API-Key Header
-curl -X GET "https://your-domain.com/api/stats" \
+# 跨域 + X-API-Key Header 认证
+curl -X GET "https://your-diary-domain.com/api/stats" \
   -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
   -H "X-API-Key: YOUR_API_KEY"
 
-# 使用查询参数
-curl -X GET "https://your-domain.com/api/stats?api_key=YOUR_API_KEY" \
-  -H "Accept: application/json"
+# 跨域 + 查询参数认证
+curl -X GET "https://your-diary-domain.com/api/stats?api_key=YOUR_API_KEY" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json"
+
+# 测试 CORS 预检请求
+curl -X OPTIONS "https://your-diary-domain.com/api/stats" \
+  -H "Access-Control-Request-Method: GET" \
+  -H "Access-Control-Request-Headers: Content-Type, X-API-Key" \
+  -v
 ```
 
 ### Python
@@ -189,15 +307,26 @@ curl -X GET "https://your-domain.com/api/stats?api_key=YOUR_API_KEY" \
 ```python
 import requests
 
-def get_diary_stats(api_key=None):
+def get_diary_stats(api_key=None, base_url='https://your-diary-domain.com'):
+    """
+    获取日记统计信息（支持跨域请求）
+
+    Args:
+        api_key: API密钥（可选）
+        base_url: API基础URL，支持跨域请求
+    """
     try:
-        headers = {'Accept': 'application/json'}
+        headers = {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+        }
 
         # 添加API密钥（如果提供）
         if api_key:
             headers['X-API-Key'] = api_key
 
-        response = requests.get('https://your-domain.com/api/stats', headers=headers)
+        url = f"{base_url}/api/stats"
+        response = requests.get(url, headers=headers)
         response.raise_for_status()
 
         data = response.json()
@@ -209,17 +338,49 @@ def get_diary_stats(api_key=None):
         print(f"请求失败: {e}")
         return None
 
-# 使用示例（无认证）
-stats = get_diary_stats()
-if stats:
-    print(f"连续记录: {stats['consecutive_days']} 天")
-    print(f"总记录天数: {stats['total_days_with_entries']} 天")
-    print(f"日记总数: {stats['total_entries']} 篇")
+# 使用示例（本地请求，无认证）
+local_stats = get_diary_stats(base_url='http://localhost:8788')
+if local_stats:
+    print(f"本地统计 - 连续记录: {local_stats['consecutive_days']} 天")
 
-# 使用示例（带API密钥）
-stats_with_key = get_diary_stats('YOUR_API_KEY')
-if stats_with_key:
-    print("使用API密钥获取的统计信息:", stats_with_key)
+# 使用示例（跨域请求，无认证）
+remote_stats = get_diary_stats()
+if remote_stats:
+    print(f"远程统计 - 连续记录: {remote_stats['consecutive_days']} 天")
+    print(f"总记录天数: {remote_stats['total_days_with_entries']} 天")
+    print(f"日记总数: {remote_stats['total_entries']} 篇")
+
+# 使用示例（跨域请求 + API密钥认证）
+auth_stats = get_diary_stats('YOUR_API_KEY', 'https://your-diary-domain.com')
+if auth_stats:
+    print("跨域认证请求成功:", auth_stats)
+
+# 使用 Authorization Header 的示例
+def get_diary_stats_with_bearer(api_key, base_url='https://your-diary-domain.com'):
+    try:
+        headers = {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'Authorization': f'Bearer {api_key}'
+        }
+
+        url = f"{base_url}/api/stats"
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+
+        data = response.json()
+        if data['success']:
+            return data['data']
+        else:
+            raise Exception(data['error'])
+    except requests.RequestException as e:
+        print(f"Bearer认证请求失败: {e}")
+        return None
+
+# Bearer Token 认证示例
+bearer_stats = get_diary_stats_with_bearer('YOUR_API_KEY')
+if bearer_stats:
+    print("Bearer Token 认证成功:", bearer_stats)
 ```
 
 ## 部署说明
@@ -247,7 +408,55 @@ API 可能返回以下错误：
 - **401 Unauthorized**: API密钥无效或缺失（当启用密钥保护时）
 - **500 Internal Server Error**: 数据库连接失败或查询错误
 - **404 Not Found**: 接口路径错误
-- **CORS 错误**: 跨域请求被阻止（已配置允许所有来源）
+
+### CORS 相关错误
+
+虽然 API 已配置支持所有来源的跨域请求，但在某些情况下仍可能遇到 CORS 问题：
+
+#### 常见 CORS 错误及解决方案
+
+1. **预检请求失败**
+   ```
+   Access to fetch at 'https://domain.com/api/stats' from origin 'https://other-domain.com'
+   has been blocked by CORS policy: Response to preflight request doesn't pass access control check
+   ```
+
+   **解决方案**: 确保请求头正确，API 会自动处理 OPTIONS 预检请求
+
+2. **认证头被阻止**
+   ```
+   Access to fetch at 'https://domain.com/api/stats' from origin 'https://other-domain.com'
+   has been blocked by CORS policy: Request header field authorization is not allowed
+   ```
+
+   **解决方案**: API 已配置允许 `Authorization` 和 `X-API-Key` 头，如果仍有问题请检查请求格式
+
+3. **网络错误**
+   ```
+   TypeError: Failed to fetch
+   ```
+
+   **解决方案**: 检查目标域名是否可访问，确保 HTTPS/HTTP 协议匹配
+
+#### CORS 调试技巧
+
+```javascript
+// 检查 CORS 支持
+fetch('https://your-diary-domain.com/api/stats', {
+  method: 'OPTIONS'
+})
+.then(response => {
+  console.log('CORS Headers:', {
+    'Access-Control-Allow-Origin': response.headers.get('Access-Control-Allow-Origin'),
+    'Access-Control-Allow-Methods': response.headers.get('Access-Control-Allow-Methods'),
+    'Access-Control-Allow-Headers': response.headers.get('Access-Control-Allow-Headers'),
+    'Access-Control-Max-Age': response.headers.get('Access-Control-Max-Age')
+  });
+})
+.catch(error => {
+  console.error('CORS 预检失败:', error);
+});
+```
 
 ## 性能说明
 
@@ -258,6 +467,13 @@ API 可能返回以下错误：
 
 ## 更新日志
 
+- **v1.2.0**: 优化 CORS 跨域支持
+  - 统一 CORS 头配置，确保所有响应都包含完整的 CORS 头
+  - 添加 `Access-Control-Max-Age` 预检缓存（24小时）
+  - 完善跨域认证支持，允许 `Authorization` 和 `X-API-Key` 头
+  - 增强文档，添加详细的跨域请求示例和调试指南
+  - 支持复杂跨域请求的预检处理
+
 - **v1.1.0**: 添加API密钥保护功能
   - 支持可选的API密钥认证
   - 三种密钥传递方式：Authorization Header、X-API-Key Header、查询参数
@@ -267,7 +483,7 @@ API 可能返回以下错误：
 - **v1.0.0**: 初始版本，提供基础统计功能
   - 支持连续天数、总天数、总条目数统计
   - 支持最新和最早日记时间查询
-  - 支持 CORS 跨域请求
+  - 基础 CORS 跨域请求支持
 
 ## 安全性
 
