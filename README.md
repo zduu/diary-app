@@ -3,7 +3,7 @@
 基于 React + TypeScript + Cloudflare 构建的现代化日记应用。
 
 # [在线演示](https://diary.edxx.de)
-# [项目地址](https://github.com/zduu/diary-app)
+# [项目地址](https://github.com/zduu/diary-web)
 
 ![React](https://img.shields.io/badge/React-18-blue.svg)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue.svg)
@@ -63,8 +63,8 @@
 
 ```bash
 # 克隆项目
-git clone https://github.com/zduu/diary-app.git
-cd diary-app
+git clone https://github.com/zduu/diary-web.git
+cd diary-web
 
 # 安装依赖
 npm install

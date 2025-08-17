@@ -1,4 +1,4 @@
-name = "diary-app"
+name = "diary-web"
 
 # Cloudflare Pages configuration
 pages_build_output_dir = "dist"
