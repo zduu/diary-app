@@ -14,7 +14,8 @@ import {
   Trash2,
   Edit,
   Filter,
-  Archive
+  Archive,
+  BookOpen
 } from 'lucide-react';
 import { useThemeContext } from './ThemeProvider';
 import { DiaryEntry } from '../types';
@@ -72,6 +73,7 @@ interface AdminSettings {
   passwordProtection: boolean;
   adminPassword: string;
   showHiddenEntries: boolean;
+  welcomePageEnabled: boolean;
 }
 
 interface PasswordSettings {
@@ -98,6 +100,14 @@ interface ArchiveViewSettings {
 export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }: AdminPanelProps) {
   const { theme } = useThemeContext();
   const { isAdminAuthenticated, setIsAdminAuthenticated } = useAdminAuth();
+
+  // 获取适配暗色主题的文本颜色
+  const getTextColor = (type: 'primary' | 'secondary' = 'primary') => {
+    if (theme.mode === 'glass' || theme.mode === 'dark') {
+      return type === 'primary' ? '#f1f5f9' : 'rgba(241, 245, 249, 0.8)';
+    }
+    return type === 'primary' ? theme.colors.text : theme.colors.textSecondary;
+  };
   // 如果全局已认证，本地也设为已认证
   const [isAuthenticated, setIsAuthenticated] = useState(isAdminAuthenticated);
   const [passwordInput, setPasswordInput] = useState('');
@@ -110,6 +120,7 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
     passwordProtection: false,
     adminPassword: 'admin123',
     showHiddenEntries: false,
+    welcomePageEnabled: true,
   });
 
   // 从后端加载设置
@@ -120,6 +131,7 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
         ...prev,
         adminPassword: allSettings.admin_password || 'admin123',
         passwordProtection: allSettings.app_password_enabled === 'true',
+        welcomePageEnabled: allSettings.welcome_page_enabled !== 'false', // 默认启用
       }));
 
       // 同时加载密码设置
@@ -182,6 +194,7 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
       // 保存到数据库
       await apiService.setSetting('admin_password', newSettings.adminPassword);
       await apiService.setSetting('app_password_enabled', newSettings.passwordProtection.toString());
+      await apiService.setSetting('welcome_page_enabled', newSettings.welcomePageEnabled.toString());
 
       // 更新本地状态
       setSettings(newSettings);
@@ -751,8 +764,17 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
     >
         <div
           style={{
-            backgroundColor: '#ffffff',
-            border: '1px solid #e2e8f0',
+            backgroundColor: theme.mode === 'glass'
+              ? 'rgba(15, 23, 42, 0.95)'
+              : theme.mode === 'dark'
+                ? 'rgba(30, 41, 59, 0.95)'
+                : theme.colors.surface,
+            border: theme.mode === 'glass'
+              ? '1px solid rgba(99, 102, 241, 0.3)'
+              : theme.mode === 'dark'
+                ? '1px solid rgba(51, 65, 85, 0.5)'
+                : `1px solid ${theme.colors.border}`,
+            backdropFilter: theme.mode === 'glass' || theme.mode === 'dark' ? 'blur(20px)' : 'none',
             borderRadius: '12px',
             width: '100%',
             maxWidth: '1024px',
@@ -763,7 +785,12 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
             display: 'block',
             visibility: 'visible',
             opacity: 1,
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+            boxShadow: theme.mode === 'glass'
+              ? '0 8px 32px rgba(0, 0, 0, 0.3), 0 0 20px rgba(99, 102, 241, 0.2)'
+              : theme.mode === 'dark'
+                ? '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+                : '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            color: theme.mode === 'glass' || theme.mode === 'dark' ? '#f1f5f9' : theme.colors.text
           }}
           onClick={(e) => {
             // 防止点击弹窗内容时关闭弹窗
@@ -772,10 +799,18 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
         >
         {/* 头部 */}
         <div className="flex items-center justify-between p-6 border-b"
-             style={{ borderBottomColor: theme.colors.border }}>
+             style={{
+               borderBottomColor: theme.mode === 'glass'
+                 ? 'rgba(99, 102, 241, 0.3)'
+                 : theme.mode === 'dark'
+                   ? 'rgba(51, 65, 85, 0.5)'
+                   : theme.colors.border
+             }}>
           <div className="flex items-center gap-3">
             <Shield className="w-6 h-6" style={{ color: theme.colors.primary }} />
-            <h2 className="text-xl font-bold" style={{ color: theme.colors.text }}>
+            <h2 className="text-xl font-bold" style={{
+              color: theme.mode === 'glass' || theme.mode === 'dark' ? '#f1f5f9' : theme.colors.text
+            }}>
               管理员面板
             </h2>
           </div>
@@ -797,9 +832,15 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
             <button
               onClick={handleClose}
               className="p-2 rounded-lg hover:bg-opacity-80 transition-colors"
-              style={{ backgroundColor: theme.colors.border }}
+              style={{
+                backgroundColor: theme.mode === 'glass' || theme.mode === 'dark'
+                  ? 'rgba(255, 255, 255, 0.1)'
+                  : theme.colors.border
+              }}
             >
-              <X className="w-5 h-5" style={{ color: theme.colors.text }} />
+              <X className="w-5 h-5" style={{
+                color: theme.mode === 'glass' || theme.mode === 'dark' ? '#f1f5f9' : theme.colors.text
+              }} />
             </button>
           </div>
         </div>
@@ -811,10 +852,16 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
             <div className="max-w-md mx-auto">
               <div className="text-center mb-6">
                 <Key className="w-12 h-12 mx-auto mb-4" style={{ color: theme.colors.primary }} />
-                <h3 className="text-lg font-semibold mb-2" style={{ color: theme.colors.text }}>
+                <h3 className="text-lg font-semibold mb-2" style={{
+                  color: theme.mode === 'glass' || theme.mode === 'dark' ? '#f1f5f9' : theme.colors.text
+                }}>
                   管理员验证
                 </h3>
-                <p className="text-sm" style={{ color: theme.colors.textSecondary }}>
+                <p className="text-sm" style={{
+                  color: theme.mode === 'glass' || theme.mode === 'dark'
+                    ? 'rgba(241, 245, 249, 0.8)'
+                    : theme.colors.textSecondary
+                }}>
                   请输入管理员密码以访问管理功能
                 </p>
               </div>
@@ -827,10 +874,15 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
                   placeholder="输入管理员密码"
                   className="w-full px-4 py-3 rounded-lg border focus:outline-none focus:ring-2"
                   style={{
-                    backgroundColor: theme.colors.surface,
-                    borderColor: theme.colors.border,
-                    color: theme.colors.text,
-                    // focusRingColor: theme.colors.primary,
+                    backgroundColor: theme.mode === 'glass' || theme.mode === 'dark'
+                      ? 'rgba(15, 23, 42, 0.8)'
+                      : theme.colors.surface,
+                    borderColor: theme.mode === 'glass'
+                      ? 'rgba(99, 102, 241, 0.3)'
+                      : theme.mode === 'dark'
+                        ? 'rgba(51, 65, 85, 0.5)'
+                        : theme.colors.border,
+                    color: theme.mode === 'glass' || theme.mode === 'dark' ? '#f1f5f9' : theme.colors.text,
                   }}
                   required
                 />
@@ -864,7 +916,7 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
                   <Download className="w-5 h-5" style={{ color: theme.colors.primary }} />
                   <div className="text-left">
                     <div className="font-medium">导出数据</div>
-                    <div className="text-sm" style={{ color: theme.colors.textSecondary }}>
+                    <div className="text-sm" style={{ color: getTextColor('secondary') }}>
                       备份所有日记
                     </div>
                   </div>
@@ -880,7 +932,7 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
                   <Upload className="w-5 h-5" style={{ color: theme.colors.primary }} />
                   <div className="text-left">
                     <div className="font-medium">导入数据</div>
-                    <div className="text-sm" style={{ color: theme.colors.textSecondary }}>
+                    <div className="text-sm" style={{ color: getTextColor('secondary') }}>
                       恢复备份文件
                     </div>
                   </div>
@@ -905,7 +957,7 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
                   <Key className="w-5 h-5" style={{ color: theme.colors.primary }} />
                   <div className="text-left">
                     <div className="font-medium">密码设置</div>
-                    <div className="text-sm" style={{ color: theme.colors.textSecondary }}>
+                    <div className="text-sm" style={{ color: getTextColor('secondary') }}>
                       修改管理密码
                     </div>
                   </div>
@@ -933,8 +985,32 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
                     <div className="font-medium">
                       {settings.showHiddenEntries ? '隐藏' : '显示'}隐藏日记
                     </div>
-                    <div className="text-sm" style={{ color: theme.colors.textSecondary }}>
+                    <div className="text-sm" style={{ color: getTextColor('secondary') }}>
                       切换隐藏内容
+                    </div>
+                  </div>
+                </button>
+
+                {/* 欢迎页面开关 */}
+                <button
+                  onClick={() => {
+                    const newSettings = { ...settings, welcomePageEnabled: !settings.welcomePageEnabled };
+                    saveSettings(newSettings);
+                  }}
+                  className="flex items-center gap-3 p-4 rounded-lg border transition-colors hover:bg-opacity-80"
+                  style={{
+                    backgroundColor: theme.colors.surface,
+                    borderColor: theme.colors.border,
+                    color: theme.colors.text,
+                  }}
+                >
+                  <BookOpen className="w-5 h-5" style={{ color: theme.colors.primary }} />
+                  <div className="text-left">
+                    <div className="font-medium">
+                      {settings.welcomePageEnabled ? '禁用' : '启用'}欢迎页面
+                    </div>
+                    <div className="text-sm" style={{ color: getTextColor('secondary') }}>
+                      控制应用启动时是否显示欢迎页面
                     </div>
                   </div>
                 </button>
@@ -942,7 +1018,7 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
 
               {/* 应用安全设置区域 */}
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold" style={{ color: theme.colors.text }}>
+                <h3 className="text-lg font-semibold" style={{ color: getTextColor('primary') }}>
                   应用安全设置
                 </h3>
 
@@ -966,7 +1042,7 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
                       <div className="font-medium">
                         {currentPasswordSettings.enabled ? '关闭' : '开启'}应用密码保护
                       </div>
-                      <div className="text-sm" style={{ color: theme.colors.textSecondary }}>
+                      <div className="text-sm" style={{ color: getTextColor('secondary') }}>
                         {currentPasswordSettings.enabled ? '允许无密码访问' : '需要密码才能访问应用'}
                       </div>
                     </div>
@@ -985,7 +1061,7 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
                     <Key className="w-5 h-5" style={{ color: theme.colors.primary }} />
                     <div className="text-left">
                       <div className="font-medium">应用密码设置</div>
-                      <div className="text-sm" style={{ color: theme.colors.textSecondary }}>
+                      <div className="text-sm" style={{ color: getTextColor('secondary') }}>
                         修改应用访问密码
                       </div>
                     </div>
@@ -1000,7 +1076,7 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
                     backgroundColor: theme.colors.surface,
                     borderColor: theme.colors.border,
                   }}>
-                    <h4 className="font-medium mb-3" style={{ color: theme.colors.text }}>
+                    <h4 className="font-medium mb-3" style={{ color: getTextColor('primary') }}>
                       修改应用访问密码
                     </h4>
                     <div className="flex gap-3">
@@ -1027,7 +1103,7 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
                         确认修改
                       </button>
                     </div>
-                    <p className="text-xs mt-2" style={{ color: theme.colors.textSecondary }}>
+                    <p className="text-xs mt-2" style={{ color: getTextColor('secondary') }}>
                       当前密码：{currentPasswordSettings.password}
                     </p>
                   </div>
@@ -1037,7 +1113,7 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
 
               {/* 界面设置区域 */}
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold" style={{ color: theme.colors.text }}>
+                <h3 className="text-lg font-semibold" style={{ color: getTextColor('primary') }}>
                   界面设置
                 </h3>
 
@@ -1057,7 +1133,7 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
                       <div className="font-medium">
                         {currentQuickFiltersSettings.enabled ? '关闭' : '开启'}快速筛选
                       </div>
-                      <div className="text-sm" style={{ color: theme.colors.textSecondary }}>
+                      <div className="text-sm" style={{ color: getTextColor('secondary') }}>
                         {currentQuickFiltersSettings.enabled ? '隐藏快速筛选功能' : '显示快速筛选功能'}
                       </div>
                     </div>
@@ -1078,7 +1154,7 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
                       <div className="font-medium">
                         {currentExportSettings.enabled ? '关闭' : '开启'}导出功能
                       </div>
-                      <div className="text-sm" style={{ color: theme.colors.textSecondary }}>
+                      <div className="text-sm" style={{ color: getTextColor('secondary') }}>
                         {currentExportSettings.enabled ? '隐藏导出功能按钮' : '显示导出功能按钮'}
                       </div>
                     </div>
@@ -1099,7 +1175,7 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
                       <div className="font-medium">
                         {currentArchiveViewSettings.enabled ? '关闭' : '开启'}归纳视图
                       </div>
-                      <div className="text-sm" style={{ color: theme.colors.textSecondary }}>
+                      <div className="text-sm" style={{ color: getTextColor('secondary') }}>
                         {currentArchiveViewSettings.enabled ? '隐藏归纳显示模式' : '显示归纳显示模式'}
                       </div>
                     </div>
@@ -1113,7 +1189,7 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
                   backgroundColor: theme.colors.surface,
                   borderColor: theme.colors.border,
                 }}>
-                  <h4 className="font-medium mb-3" style={{ color: theme.colors.text }}>
+                  <h4 className="font-medium mb-3" style={{ color: getTextColor('primary') }}>
                     修改管理员密码
                   </h4>
                   <div className="flex gap-3">
@@ -1173,7 +1249,7 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
                       }}
                     >
                       <div className="flex-1 min-w-0">
-                        <div className="font-medium" style={{ color: theme.colors.text }}>
+                        <div className="font-medium" style={{ color: getTextColor('primary') }}>
                           {entry.title || '无标题'}
                           {entry.hidden && (
                             <span className="ml-2 text-xs px-2 py-1 rounded bg-red-500 text-white">
@@ -1181,11 +1257,11 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
                             </span>
                           )}
                         </div>
-                        <div className="text-sm truncate" style={{ color: theme.colors.textSecondary }}>
+                        <div className="text-sm truncate" style={{ color: getTextColor('secondary') }}>
                           {entry.content.substring(0, 50)}
                           {entry.content.length > 50 && '...'}
                         </div>
-                        <div className="text-xs mt-1" style={{ color: theme.colors.textSecondary }}>
+                        <div className="text-xs mt-1" style={{ color: getTextColor('secondary') }}>
                           {getSmartTimeDisplay(entry.created_at!).tooltip}
                         </div>
                       </div>
@@ -1205,7 +1281,7 @@ export function AdminPanel({ isOpen, onClose, entries, onEntriesUpdate, onEdit }
                   ))}
 
                   {filteredEntries.length === 0 && (
-                    <div className="text-center py-8" style={{ color: theme.colors.textSecondary }}>
+                    <div className="text-center py-8" style={{ color: getTextColor('secondary') }}>
                       {searchQuery ? '没有找到匹配的日记' : '暂无日记'}
                     </div>
                   )}

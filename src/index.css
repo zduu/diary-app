@@ -1,3 +1,4 @@
+/* Tailwind CSS 指令 - 构建时会被正确处理 */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -5,7 +6,7 @@
 /* 移动端优化 */
 .line-clamp-2 {
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 2; /* 使用webkit前缀以确保浏览器兼容性 */
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -61,11 +62,19 @@
 body {
   margin: 0;
   min-width: 320px;
+  min-height: 100vh; /* 确保body至少占满整个视口高度 */
+  height: 100%; /* 确保body占满整个高度 */
   transition: all 0.3s ease;
+}
+
+html {
+  height: 100%; /* 确保html占满整个高度 */
 }
 
 #root {
   width: 100%;
+  min-height: 100vh; /* 确保根容器至少占满整个视口高度 */
+  height: 100%; /* 确保根容器占满整个高度 */
 }
 
 /* 主题样式 */
@@ -108,6 +117,14 @@ body {
   background-size: cover;
   position: relative;
   overflow-x: hidden;
+  min-height: 100vh; /* 确保玻璃主题背景至少占满整个视口高度 */
+  height: 100%; /* 确保玻璃主题背景占满整个高度 */
+}
+
+/* 暗色主题背景 */
+.theme-dark {
+  min-height: 100vh; /* 确保暗色主题背景至少占满整个视口高度 */
+  height: 100%; /* 确保暗色主题背景占满整个高度 */
 }
 
 /* 玻璃主题渐变覆盖层和装饰性背景图案 - 参考blog-guide */
@@ -901,6 +918,63 @@ body.theme-purple .location-detail-modal {
   max-height: 90vh;
   overflow-y: auto;
   overscroll-behavior: contain;
+}
+
+/* 修复管理员面板在夜间和玻璃主题下的背景问题 */
+.theme-dark .admin-panel-content,
+.theme-glass .admin-panel-content {
+  background: rgba(15, 23, 42, 0.95) !important;
+  backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(99, 102, 241, 0.3) !important;
+  color: #f1f5f9 !important;
+}
+
+.theme-dark .admin-panel-content {
+  background: rgba(30, 41, 59, 0.95) !important;
+  border: 1px solid rgba(51, 65, 85, 0.5) !important;
+}
+
+/* 确保管理员面板内的文本在暗色主题下可见 */
+.theme-dark .admin-panel-content *,
+.theme-glass .admin-panel-content * {
+  color: inherit !important;
+}
+
+.theme-dark .admin-panel-content input,
+.theme-glass .admin-panel-content input,
+.theme-dark .admin-panel-content textarea,
+.theme-glass .admin-panel-content textarea {
+  background: rgba(15, 23, 42, 0.8) !important;
+  border: 1px solid rgba(99, 102, 241, 0.3) !important;
+  color: #f1f5f9 !important;
+}
+
+.theme-dark .admin-panel-content input::placeholder,
+.theme-glass .admin-panel-content input::placeholder,
+.theme-dark .admin-panel-content textarea::placeholder,
+.theme-glass .admin-panel-content textarea::placeholder {
+  color: rgba(241, 245, 249, 0.6) !important;
+}
+
+/* 强制确保主题背景覆盖整个页面 */
+.theme-dark,
+.theme-glass,
+.theme-light {
+  min-height: 100vh !important;
+  height: auto !important;
+  position: relative;
+}
+
+/* 确保主应用容器背景覆盖完整 */
+.app-transition {
+  min-height: 100vh !important;
+  position: relative;
+}
+
+/* 确保主内容区域背景覆盖完整 */
+main {
+  min-height: calc(100vh - 120px) !important; /* 减去header的大概高度 */
+  position: relative;
 }
 
 /* Custom scrollbar */

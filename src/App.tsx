@@ -64,14 +64,22 @@ function AppContent() {
         // 使用apiService来获取设置，这样会自动处理API失败的情况
         const settings = await apiService.getAllSettings();
         const isEnabled = settings.app_password_enabled === 'true';
+        const welcomePageEnabled = settings.welcome_page_enabled !== 'false'; // 默认启用
         setPasswordProtectionEnabled(isEnabled);
 
-        // 如果密码保护未启用，设置为已认证，但仍显示欢迎页面
+        // 如果密码保护未启用，设置为已认证
         if (!isEnabled) {
           setIsAuthenticated(true);
         }
-        // 无论是否有密码保护，都先显示欢迎页面
-        setShowWelcomePage(true);
+
+        // 根据欢迎页面设置决定是否显示欢迎页面
+        if (welcomePageEnabled) {
+          setShowWelcomePage(true);
+        } else {
+          // 如果欢迎页面被禁用，直接显示主应用
+          setShowWelcomePage(false);
+          setShowMainApp(true);
+        }
       } catch (error) {
         console.error('检查密码保护设置失败:', error);
         // 出错时检查localStorage中的设置
@@ -85,7 +93,7 @@ function AppContent() {
             if (!isEnabled) {
               setIsAuthenticated(true);
             }
-            // 无论是否有密码保护，都先显示欢迎页面
+            // 默认启用欢迎页面（如果没有设置的话）
             setShowWelcomePage(true);
           } catch (parseError) {
             console.error('解析本地密码设置失败:', parseError);
@@ -95,7 +103,7 @@ function AppContent() {
             setShowWelcomePage(true);
           }
         } else {
-          // 没有本地设置时默认不启用密码保护，直接进入应用
+          // 没有本地设置时默认不启用密码保护，启用欢迎页面
           setPasswordProtectionEnabled(false);
           setIsAuthenticated(true);
           setShowWelcomePage(true);
@@ -314,7 +322,8 @@ function AppContent() {
             ? 'all 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)'
             : 'all 0.3s ease',
           // 当不显示主应用时，完全移除对布局的影响
-          display: showMainApp ? 'block' : 'none'
+          display: showMainApp ? 'block' : 'none',
+          minHeight: '100vh' // 确保主应用容器至少占满整个视口高度
         }}
       >
       {/* Header */}
@@ -445,7 +454,7 @@ function AppContent() {
       </div>
 
       {/* Main Content */}
-      <main className="max-w-6xl mx-auto px-4 py-4 md:py-8">
+      <main className="max-w-6xl mx-auto px-4 py-4 md:py-8 min-h-screen">
         {error && (
           <div
             className="mb-6 p-4 rounded-xl border"
