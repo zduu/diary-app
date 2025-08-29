@@ -977,6 +977,8 @@ main {
   position: relative;
 }
 
+
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

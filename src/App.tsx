@@ -375,7 +375,8 @@ function AppContent() {
             </div>
 
             <div className="flex items-center gap-1 md:gap-3">
-              <div className="hidden md:block">
+              {/* 主题切换按钮 - 桌面端和移动端都显示 */}
+              <div className="block">
                 <ThemeToggle />
               </div>
 
@@ -448,10 +449,7 @@ function AppContent() {
         </div>
       </header>
 
-      {/* Mobile Theme Toggle */}
-      <div className="md:hidden fixed bottom-4 left-4 z-40">
-        <ThemeToggle />
-      </div>
+
 
       {/* Main Content */}
       <main className="max-w-6xl mx-auto px-4 py-4 md:py-8 min-h-screen">
